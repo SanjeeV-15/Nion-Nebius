@@ -9,7 +9,7 @@ Build mode: learn
 
 ## Slices
 
-- [ ] **1. You say "Hey Nion, what is today's date?" and hear Nion answer aloud**
+- [x] **1. You say "Hey Nion, what is today's date?" and hear Nion answer aloud**
   Becomes usable: A running app in Chrome. You tap once, say the wake phrase plus a question, and Nion speaks a short answer from Claude. A line on screen shows what Chrome heard. This is the kernel loop: hear, think, speak.
   Why now: It proves the riskiest, most important path first (can Chrome hear "Nion," can Claude answer, can the page speak back) and leaves every later slice a working place to land. Project setup is part of this slice.
   PRD ref: `prd.md > The Core Journey` (steps 1-4), `prd.md > Voice conversation`
