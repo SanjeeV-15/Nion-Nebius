@@ -163,8 +163,10 @@ voice-companion/
 │       ├── storage.js    # Name and conversations in browser storage
 │       ├── ui.js         # State icon and status line
 │       └── history.js    # History list and transcript view
+├── scripts/
+│   └── check-replies.mjs # Asks Claude sample questions and checks Nion's replies (npm run check:replies)
 ├── tests/
-│   └── wake.test.js      # Checks the wake phrase and commands
+│   └── *.test.js         # Wake phrase, commands, names, echo, conversation, prompt, and controller tests
 ├── devpost/              # Devpost learning workspace (scope, PRD, spec, checklist)
 ├── .env.example          # Shows the setting names without any secret
 ├── .gitignore

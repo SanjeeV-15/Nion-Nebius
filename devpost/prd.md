@@ -113,6 +113,7 @@ Navigation: Main screen to History and back. There is no other screen.
 - **Voice only, screen on for the proof of concept.** The learner decided the demo is "we talk to it and it talks back." Screen-off and background listening are Later because they are the hardest part and not needed to prove the idea.
 - **Designed for ears, not screens is the differentiator.** The learner chose this as the main target because it's the whole reason Nion exists, and it separates Nion from general assistants that show links and lists.
 - **Up to five items, then ask.** The learner chose five as the point where Nion stops and asks whether to continue, narrow, or go deeper.
+- **Five is a hard cap for open-ended lists, even if you ask for more.** Places, ideas and results are capped at five, then Nion offers more. A short fixed set everyone knows (the planets, days of the week) may be said in full. Found while testing: asked for "all" or "ten", Nion sometimes said more than five, so the rule now says it holds even then, and includes teasers.
 - **Clarify broad questions first.** For example, asking which Nobel field.
 - **Understands rambling speech.** The learner wants Nion to cope with messy, long speech (like Wispr Flow's cleanup), so it understands the point and says back what it understood in one sentence when the message is long. Showing a tidied-up version of what the person said in History is Later.
 - **Name sources aloud for news.** If nothing is found, say so.

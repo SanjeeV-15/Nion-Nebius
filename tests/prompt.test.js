@@ -28,3 +28,12 @@ test("the current date and time are included when given", () => {
   assert.match(prompt, /Sunday, October 11, 2026/);
   assert.match(prompt, /America\/New_York/);
 });
+
+test("Nion's instructions include the spoken-answer rules", () => {
+  const prompt = buildSystemPrompt({});
+  assert.match(prompt, /at most five/i);
+  assert.match(prompt, /clarifying question/i);
+  assert.match(prompt, /rambles/i);
+  assert.match(prompt, /honest opinion/i);
+  assert.match(prompt, /Never use markdown/i);
+});

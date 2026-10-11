@@ -49,7 +49,7 @@ Build mode: learn
   Learner check: Open the page and say "Hey Nion, what time is it in Denver?" Watch the icon change as it listens, thinks and speaks. Say whether it feels sleek and monotone, and whether you can tell the four states apart.
   Commit: `Add monotone glass look and four-state icon`
 
-- [ ] **5. Designed for ears: short spoken answers, five items at most, and it handles rambling**
+- [x] **5. Designed for ears: short spoken answers, five items at most, and it handles rambling**
   Becomes usable: Nion answers the way a person would on a call: short, no lists or links, at most five items before asking whether to continue, narrow or go deeper, one clarifying question for broad questions, a one-sentence "here's what I understood" after a long ramble, and an opinion plus a follow-up on decisions.
   Why now: This is Nion's difference from Siri and ChatGPT, so it has to be right before the features that depend on it (search, location).
   PRD ref: `prd.md > Designed for ears, not screens`, `prd.md > A partner with a point of view`
