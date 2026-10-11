@@ -36,6 +36,21 @@ Open http://localhost:3000/?debug to see a log of what Nion hears and decides.
 
 Run the tests with `npm test`.
 
+## Try it on a phone (experimental)
+
+Phones only allow the microphone on secure (https) pages, so Nion needs a secure
+address. A free Cloudflare "quick tunnel" gives your laptop one for a while:
+
+1. Download `cloudflared` for your computer from
+   https://github.com/cloudflare/cloudflared/releases and put it at `.tools/cloudflared`
+   (the `.tools/` folder is ignored by git).
+2. With Nion running (`npm start`), run `npm run tunnel` in a second terminal.
+3. Open the `https://....trycloudflare.com` address it prints on your phone.
+
+**While the tunnel runs, anyone with that address can use your Nion and your API
+credit.** Stop it (Ctrl+C) when you are done. Speech recognition on iPhones is much
+less reliable than in Chrome on a computer or an Android phone.
+
 ## How it is built
 
 The planning documents are in the [`devpost/`](devpost/) folder: `scope.md`,

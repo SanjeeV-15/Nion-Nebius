@@ -10,7 +10,8 @@
   },
   "scripts": {
     "start": "node --env-file=.env server/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "tunnel": ".tools/cloudflared tunnel --url http://localhost:3000"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

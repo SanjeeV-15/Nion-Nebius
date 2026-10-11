@@ -29,7 +29,7 @@ Build mode: learn
   Learner check: Clear Nion's saved name, open it, answer the name question, then start a conversation, ask two follow-up questions without the wake phrase, and end it. Confirm it stops answering after "End the conversation."
   Commit: `Add first-use name and voice-controlled conversations`
 
-- [ ] **3. Phone check: open Nion on your phone through a temporary secure link**
+- [x] **3. Phone check: open Nion on your phone through a temporary secure link**
   Becomes usable: A temporary secure web address that opens your laptop's Nion on your phone, so you find out early whether the phone version works. This is a time-boxed experiment with one honest attempt.
   Why now: The spec says to test the phone early. If it fails (for example on an iPhone), we find out now and keep the laptop demo as the plan, with no time lost later.
   PRD ref: `prd.md > Open Questions` (carried from the spec's phone goal)
@@ -125,3 +125,5 @@ Activity mode: not yet done
 - Conversation decisions (what to do with each thing Nion hears) live in a small testable `public/js/conversation.js` that `app.js` calls, instead of all inside `app.js` — an internal change that keeps the same behavior and makes it checkable with `npm test`.
 - Interrupting moved into the first version: Nion keeps listening while it thinks and speaks, and stops the moment the person talks (with a guard against hearing its own voice). The plan had said "no interrupting" and "stop listening while speaking". The learner's first hands-on try of slice 2 showed that Nion talking over them broke the phone-call feeling. Updated `prd.md` (Voice conversation, Product Decisions, Open Questions) and `spec.md` (Hearing, State machine, Simplified, Decisions).
 - The "end the conversation" command now tolerates mishearing and close variants ("goodbye", "I'm done", "and the conversation" when it is the whole phrase) because Chrome did not reliably write the phrase.
+- Phone check result: on an iPhone, through a temporary Cloudflare tunnel, speech recognition, the first-use name question, spoken answers and interrupting all worked, so the phone is a viable demo path (the spec had expected iPhones to be the weak case). It still needs a permanent secure address (hosting) for a real phone demo, the screen must stay on, and speech recognition on the phone mis-wrote "Hey Nion" in several ways, so the wake phrase now accepts them.
+

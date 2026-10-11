@@ -208,6 +208,7 @@ voice-companion/
 ## Decisions and Open Issues
 
 ### Changed during the build
+- **Phone check passed on an iPhone.** Through a temporary secure tunnel, an iPhone ran Nion's speech recognition, name question, spoken answers and interrupting. This is better than the spec feared, so the phone stays in the plan as the headline demo, with the laptop recording as the fallback. It will need a hosted secure address; the tunnel was only for testing.
 - **Interrupting is in, and conversation decisions are in their own file.** After the first hands-on try, the learner needed Nion to stop and listen when interrupted, so Nion keeps listening while it thinks and speaks. This replaces the earlier "stop listening while speaking" simplification. The tradeoffs: laptop speakers can feed Nion's voice back into the microphone (guarded by `echo.js`, and earphones avoid it entirely), and on an iPhone an open microphone can lower playback quality (a known browser issue), which makes the phone attempt a little more fragile.
 
 ### Learner choices
