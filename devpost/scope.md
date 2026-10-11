@@ -18,7 +18,7 @@ They say "Hey Nion" and ask something out loud, for example "what are some place
 
 ## Inspiration & Identity
 - A Jarvis-style personal assistant (Iron Man) that you talk to and that talks back.
-- "Like talking to another person on the phone": warm, conversational, personal. It greets you by name ("Hey Sanjeev...").
+- "Like talking to another person on the phone": warm, conversational, personal. It greets you by name ("Hey Alex...").
 - Name: Nion, taken from the last letters of "Companion."
 - Tone: helpful partner who gives an opinion and asks good questions, not a robotic reader of search results.
 

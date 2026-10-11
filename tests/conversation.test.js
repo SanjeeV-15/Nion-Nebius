@@ -74,8 +74,8 @@ test("ending or starting is ignored when it makes no sense", () => {
 
 test("after Nion asks for a name, the next thing said is the name", () => {
   const asking = { active: false, awaiting: "name" };
-  assert.deepEqual(decide(asking, "Sanjeev"), { type: "setName", name: "Sanjeev" });
-  assert.deepEqual(decide(asking, "my name is Sanjeev"), { type: "setName", name: "Sanjeev" });
+  assert.deepEqual(decide(asking, "Alex"), { type: "setName", name: "Alex" });
+  assert.deepEqual(decide(asking, "my name is Alex"), { type: "setName", name: "Alex" });
   assert.deepEqual(decide(asking, "what is the weather in denver today please"), { type: "nameRetry" });
 });
 

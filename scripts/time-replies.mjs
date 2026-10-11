@@ -17,7 +17,7 @@ const context = {
   localDateTime: now.toLocaleString("en-US", {
     weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
   }),
-  userName: "Sanjeev",
+  userName: "Alex",
   isNewConversation: false,
 };
 
