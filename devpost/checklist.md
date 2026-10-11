@@ -108,7 +108,7 @@ Build mode: learn
 
 - [x] Nion describes what it can and can't do accurately: no memory across conversations yet, History keeps transcripts it can't read, no reminders or to-do changes, and drafts are short and not saved or sent. (From the learner's exploring: asked to continue tomorrow, Nion said it didn't know whether the conversation was saved; asked for an email draft, it read about 90 words aloud.)
 - [x] The learner's product ideas are recorded as Later notes in `prd.md`: memory across conversations, to-do and notes integration, email drafts saved for review, think-out-loud summaries, and a daily habit loop.
-- [ ] Final review complete — feedback resolved and learner confirms ready to ship
+- [x] Final review complete — feedback resolved and learner confirms ready to ship
 
 ## Code Tour and App Map
 
@@ -136,4 +136,4 @@ Activity mode: not yet done
 - "End the conversation, thank you" (heard as "and the conversation thank you") now ends the conversation.
 - Speed check (slice 9) measured Sonnet 5.5 as fast as or faster than Haiku 5.5 on five sample questions (10.2s vs 13.8s added up), so the model stays Sonnet 5.5. Failures are spoken aloud with a 25 second time limit. The README is finished for a fresh copy of the project.
 - Found during the final review: the learner's Claude API credit ran out (partly from the live checks run while building), and every request then failed with the same "trouble reaching my sources" message. The page now explains the reason on screen (used-up credit, rejected key, busy service) while Nion still says only the short message out loud. The paid checks (`npm run check:replies`, `npm run check:speed`) will not be run again without telling the learner first.
-
+- The learner confirmed the proof of concept is ready ("Yes… pretty good") and added a design for picking up a past conversation by name, recorded in `prd.md` under Possible Later Enhancements.
