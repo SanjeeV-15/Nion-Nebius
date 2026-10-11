@@ -68,6 +68,21 @@ const session = {
 // background talk; a longer one is more relaxed.
 const FOLLOW_UP_MS = 15000;
 let followUpTimer = null;
+
+// If Claude takes longer than this to answer (usually because it is searching the
+// web), Nion says a short "one moment" so you know it hasn't stalled. Ordinary
+// answers arrive in about 1 to 2 seconds, so they don't trigger it.
+const FILLER_AFTER_MS = 2200;
+const FILLERS = ["One moment.", "Let me check.", "Checking on that.", "Just a second."];
+let lastFiller = -1;
+function nextFiller() {
+  let i;
+  do {
+    i = Math.floor(Math.random() * FILLERS.length);
+  } while (i === lastFiller);
+  lastFiller = i;
+  return FILLERS[i];
+}
 let messages = []; // the conversation so far, sent to Claude each time
 let nameTries = 0;
 let questionTimer = null;
@@ -339,6 +354,19 @@ async function ask(question, oneShot) {
   thread.push({ role: "user", content: question });
 
   abortAsk = new AbortController();
+
+  // If the answer is slow, say a short "one moment". The real answer then waits
+  // until that has finished, so the two never overlap.
+  let fillerDone = Promise.resolve();
+  const fillerTimer = setTimeout(() => {
+    if (mine !== turn || state !== "thinking") return; // already answered or interrupted
+    const phrase = nextFiller();
+    trace("filler", phrase);
+    echo.text = phrase;
+    echo.until = Infinity;
+    fillerDone = speak(phrase);
+  }, FILLER_AFTER_MS);
+
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -355,6 +383,9 @@ async function ask(question, oneShot) {
     if (!response.ok) throw new Error(`Server said ${response.status}`);
     const { reply } = await response.json();
 
+    clearTimeout(fillerTimer);
+    await fillerDone; // let "one moment" finish before the answer starts
+
     if (mine !== turn) {
       thread.pop(); // you interrupted while Claude was answering: drop that question
       return;
@@ -364,6 +395,8 @@ async function ask(question, oneShot) {
     // After an answer, leave the follow-up window open for a moment.
     if (finished && !session.active) openFollowUp();
   } catch (error) {
+    clearTimeout(fillerTimer);
+    echo.until = Date.now() + ECHO_TAIL_MS; // a "one moment" may have been spoken
     thread.pop(); // the question got no answer, so take it back out
     if (mine !== turn) return; // that was us cancelling because you interrupted
     console.error(error);

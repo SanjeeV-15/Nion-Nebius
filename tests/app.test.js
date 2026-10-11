@@ -310,3 +310,51 @@ test("in the follow-up window, any speech shows the listening icon", async () =>
   await hear("and in", { final: false });
   assert.match(status(), /Listening/);
 });
+
+const FILLER = /One moment|Let me check|Checking on that|Just a second/;
+
+test("a slow answer gets a short 'one moment' first, and the answer waits for it to finish", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  assert.equal(fetches.length, 1);
+
+  // Two seconds pass and Claude is still searching.
+  firePending(2200);
+  await tick();
+  assert.match(saidSoFar(), FILLER);
+
+  // The answer arrives while "one moment" is still being spoken: it must wait.
+  fetches[0].reply("According to Reuters, talks resumed today.");
+  await tick();
+  assert.doesNotMatch(saidSoFar(), /Reuters/);
+
+  await finishSpeaking(); // "one moment" ends
+  await tick();
+  assert.match(saidSoFar(), /According to Reuters/);
+});
+
+test("a quick answer gets no 'one moment'", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the capital of Australia");
+  fetches[0].reply("It's Canberra.");
+  await tick();
+  assert.doesNotMatch(saidSoFar(), FILLER);
+  assert.match(saidSoFar(), /Canberra/);
+
+  // The "one moment" timer was cancelled, so it can't fire late.
+  firePending(2200);
+  await tick();
+  assert.doesNotMatch(saidSoFar(), FILLER);
+});
+
+test("interrupting during 'one moment' cancels the request", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  firePending(2200);
+  await tick();
+  assert.match(saidSoFar(), FILLER);
+
+  await hear("wait actually", { final: false });
+  assert.equal(fetches[0].aborted, true);
+  assert.equal(pending.length, 0, "the 'one moment' stopped too");
+});

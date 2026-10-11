@@ -212,6 +212,7 @@ voice-companion/
 ## Decisions and Open Issues
 
 ### Changed during the build
+- **A "one moment" filler for slow answers.** If Claude hasn't answered after 2.2 seconds (`FILLER_AFTER_MS` in `app.js`), Nion speaks a short filler phrase, and the real answer waits for it to finish so they never overlap. Interrupting during it cancels the request. Added after the learner tried web search and liked the idea.
 - **Web search is in (slice 6).** Real searches work: news, markets (with no buy or sell advice), "nothing found" answered plainly, and no searching for things Nion already knows. Search adds 3 to 5 seconds, so the thinking icon matters. Each search costs about a cent, so the server logs a line per question with the searches used.
 - **Phone check passed on an iPhone.** Through a temporary secure tunnel, an iPhone ran Nion's speech recognition, name question, spoken answers and interrupting. This is better than the spec feared, so the phone stays in the plan as the headline demo, with the laptop recording as the fallback. It will need a hosted secure address; the tunnel was only for testing.
 - **A 15 second follow-up window.** Outside a started conversation, Nion stays attentive for 15 seconds after answering, so a follow-up needs no wake phrase and keeps the earlier turns. The timer restarts while the person is talking and closes after 15 quiet seconds (`FOLLOW_UP_MS` in `app.js`). Added because the learner kept having to repeat the wake phrase. Risk: nearby voices in a noisy place can be mistaken for questions while it is open.

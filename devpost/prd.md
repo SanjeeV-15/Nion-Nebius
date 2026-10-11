@@ -74,6 +74,7 @@ Navigation: Main screen to History and back. There is no other screen.
 - As a traveler, I want to hear what's going on in the world so that I stay informed without reading.
   - [ ] For news and current-events questions, Nion uses multiple sources and says aloud which source each point comes from (for example, "according to Reuters...").
   - [ ] Stock and market questions get a short spoken summary of how the market and well-known stocks are doing. Nion summarizes; it does not tell the person what to buy or sell.
+  - [ ] If an answer takes more than about two seconds (usually because Nion is searching), Nion says a short "one moment" first so I know it hasn't stalled. Quick answers don't get one.
   - [ ] If no source covers the question, Nion says it couldn't find any source that mentioned it.
 
 ### Where am I
@@ -115,6 +116,7 @@ Navigation: Main screen to History and back. There is no other screen.
 - **Up to five items, then ask.** The learner chose five as the point where Nion stops and asks whether to continue, narrow, or go deeper.
 - **Five is a hard cap for open-ended lists, even if you ask for more.** Places, ideas and results are capped at five, then Nion offers more. A short fixed set everyone knows (the planets, days of the week) may be said in full. Found while testing: asked for "all" or "ten", Nion sometimes said more than five, so the rule now says it holds even then, and includes teasers.
 - **Clarify broad questions first.** For example, asking which Nobel field.
+- **A short "one moment" when an answer is slow.** Web searches take 3 to 6 seconds, longer than the 1 to 2 seconds of a normal answer. The learner liked the idea of Nion saying something while it searches, so after about two seconds Nion says "One moment," "Let me check," and similar (varying them). The real answer waits for it to finish.
 - **Understands rambling speech.** The learner wants Nion to cope with messy, long speech (like Wispr Flow's cleanup), so it understands the point and says back what it understood in one sentence when the message is long. Showing a tidied-up version of what the person said in History is Later.
 - **Name sources aloud for news.** If nothing is found, say so.
 - **Fix for missing location is spoken.** The learner wants Nion to say "allow location, or tell me where you are" instead of relying on a pop-up.
