@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nion — Scope</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --card: #ffffff; --ink: #14172b; --muted: #5b6078; --line: #e2e5f0;
+    --accent: #5b3df5; --accent-soft: #ece8ff; --good: #12805c; --good-soft: #e1f6ee;
+    --later: #a35a00; --later-soft: #fff1d9; --cut: #b3261e; --cut-soft: #fde7e5;
+    --shadow: 0 1px 2px rgba(20,23,43,.06), 0 6px 20px rgba(20,23,43,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1020; --card: #171a30; --ink: #eceefb; --muted: #a2a7c4; --line: #2a2e4d;
+      --accent: #9b86ff; --accent-soft: #261f55; --good: #4fd6a3; --good-soft: #10332a;
+      --later: #ffbe5c; --later-soft: #3a2a0c; --cut: #ff8b84; --cut-soft: #3d1715;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px; background: var(--good-soft); color: var(--good); }
+  h1 { font-size: 40px; line-height: 1.1; margin: 12px 0 8px; letter-spacing: -.02em; }
+  h1 span { color: var(--accent); }
+  .tagline { font-size: 18px; color: var(--muted); margin: 0; max-width: 680px; }
+  h2 { font-size: 20px; margin: 0 0 10px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-top: 18px; box-shadow: var(--shadow); }
+  p { margin: 0 0 10px; } p:last-child { margin-bottom: 0; }
+  .kernel { background: var(--accent-soft); border-color: transparent; }
+  .kernel q { display: block; font-size: 20px; line-height: 1.4; font-weight: 600; quotes: none; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size: 32px; } }
+  .diagram { width: 100%; height: auto; display: block; }
+  .diagram text { font-family: inherit; fill: var(--ink); }
+  .diagram .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  .diagram .hot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  .diagram .proof { fill: var(--good-soft); stroke: var(--good); stroke-width: 1.5; }
+  .diagram .sub { fill: var(--muted); font-size: 12px; }
+  .diagram .t { font-size: 14px; font-weight: 600; }
+  .diagram .arrow { stroke: var(--accent); stroke-width: 2; fill: none; }
+  .diagram .loop { stroke: var(--muted); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+  .caption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  details { border: 1px solid var(--line); border-radius: 12px; margin-top: 10px; background: var(--bg); }
+  summary { cursor: pointer; padding: 12px 14px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details > div { padding: 0 14px 14px 36px; color: var(--muted); }
+  details > div strong { color: var(--ink); }
+  .num { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 13px; flex: none; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .in { background: var(--good-soft); color: var(--good); }
+  .later { background: var(--later-soft); color: var(--later); }
+  .cut { background: var(--cut-soft); color: var(--cut); }
+  ul { margin: 6px 0 0; padding-left: 20px; } li { margin: 4px 0; }
+  .wow { margin-top: 14px; padding: 12px 14px; border-left: 4px solid var(--good); background: var(--good-soft); border-radius: 8px; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="badge">Approved</span>
+  <h1><span>Nion</span> — scope</h1>
+  <p class="tagline">A hands-free voice companion for people on the move: you talk, it talks back like a person on a phone call, so you can get answers and think things through without looking at a screen.</p>
+</header>
+
+<section class="kernel">
+  <h2>The unique kernel</h2>
+  <q>It feels like another person on the other end of a call, not a search box. It knows roughly where you are, uses your name, talks back, asks follow-ups, and can think a decision through with you.</q>
+</section>
+
+<section>
+  <h2>How it fits together</h2>
+  <svg class="diagram" viewBox="0 0 860 330" role="img" aria-labelledby="dt dd">
+    <title id="dt">Nion core loop</title>
+    <desc id="dd">A traveler says Hey Nion and asks a question. Nion hears it, uses the traveler's location and general knowledge, and speaks an answer back. The conversation loops with follow-ups. The proof is a short demo video.</desc>
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor" style="color:var(--accent)"/>
+      </marker>
+      <marker id="ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor" style="color:var(--muted)"/>
+      </marker>
+    </defs>
+
+    <!-- Traveler -->
+    <rect class="box" x="20" y="90" width="190" height="110" rx="14"/>
+    <text class="t" x="115" y="122" text-anchor="middle">Traveler</text>
+    <text class="sub" x="115" y="145" text-anchor="middle">hands full, earphones in</text>
+    <text class="sub" x="115" y="163" text-anchor="middle">"Hey Nion, where can I eat</text>
+    <text class="sub" x="115" y="180" text-anchor="middle">around me?"</text>
+
+    <!-- Nion -->
+    <rect class="hot" x="330" y="60" width="200" height="170" rx="14"/>
+    <text class="t" x="430" y="92" text-anchor="middle">Nion</text>
+    <text class="sub" x="430" y="118" text-anchor="middle">1. hears the question</text>
+    <text class="sub" x="430" y="138" text-anchor="middle">2. knows roughly where you are</text>
+    <text class="sub" x="430" y="158" text-anchor="middle">3. uses general knowledge</text>
+    <text class="sub" x="430" y="178" text-anchor="middle">4. replies like a person,</text>
+    <text class="sub" x="430" y="196" text-anchor="middle">uses your name, asks back</text>
+
+    <!-- Spoken answer -->
+    <rect class="box" x="650" y="90" width="190" height="110" rx="14"/>
+    <text class="t" x="745" y="122" text-anchor="middle">Spoken answer</text>
+    <text class="sub" x="745" y="145" text-anchor="middle">"Hey Sanjeev, here are a few</text>
+    <text class="sub" x="745" y="163" text-anchor="middle">places by price... want me</text>
+    <text class="sub" x="745" y="181" text-anchor="middle">to narrow it down?"</text>
+
+    <!-- Arrows -->
+    <path class="arrow" d="M210 145 H326" marker-end="url(#ah)"/>
+    <path class="arrow" d="M530 145 H646" marker-end="url(#ah)"/>
+    <text class="sub" x="268" y="136" text-anchor="middle">voice in</text>
+    <text class="sub" x="588" y="136" text-anchor="middle">voice out</text>
+
+    <!-- Loop back -->
+    <path class="loop" d="M745 200 V268 H115 V204" marker-end="url(#ahm)"/>
+    <text class="sub" x="430" y="262" text-anchor="middle">follow-up: they answer, Nion continues, no screen touched</text>
+
+    <!-- Proof -->
+    <rect class="proof" x="330" y="286" width="200" height="36" rx="10"/>
+    <text class="t" x="430" y="309" text-anchor="middle">Proof: 1-minute demo video</text>
+  </svg>
+  <p class="caption">One loop, repeated: ask out loud, hear the answer, follow up. If the demo shows that smoothly, the proof of concept works.</p>
+</section>
+
+<div class="grid2">
+  <section>
+    <h2>Who it's for</h2>
+    <p>A <strong>traveler moving through an airport</strong> with hands full and earphones in, rushing to a gate or just landed in a new city.</p>
+    <p>They have random questions: where to eat nearby, what time it is back home, how to get from the airport downtown. Today they stop, pull out the phone, and type.</p>
+    <p class="caption">Same idea could help anyone who wants less screen time, but travelers come first.</p>
+  </section>
+  <section>
+    <h2>Why it matters</h2>
+    <p>"A lot of times, I can't just go every time, look at my mobile, type in the answer, read it out."</p>
+    <p>Helpful when traveling, and when eyes hurt and you want to rest but keep working. The goal: a wide audience, and a first version that is narrow and effective, not overkill.</p>
+  </section>
+</div>
+
+<section>
+  <h2>What "working" looks like</h2>
+  <p>A short demo on a phone with earphones. Click each moment.</p>
+  <details>
+    <summary><span class="num">1</span> Places to eat, ranked by price</summary>
+    <div><strong>You say:</strong> "Hey Nion, what are some places to eat around me? Rank them by price."<br><strong>Nion says:</strong> names places with prices and cuisine, then asks if you want to narrow it down.</div>
+  </details>
+  <details>
+    <summary><span class="num">2</span> Time in another city</summary>
+    <div><strong>You say:</strong> "What's the time in Denver?"<br><strong>Nion says:</strong> "It's 11:59 pm in Denver."</div>
+  </details>
+  <details>
+    <summary><span class="num">3</span> Getting around</summary>
+    <div><strong>You say:</strong> "How do I get from Denver International Airport to Union Station?"<br><strong>Nion says:</strong> a few options, spoken aloud.</div>
+  </details>
+  <details>
+    <summary><span class="num">4</span> Thinking a decision through</summary>
+    <div><strong>You say:</strong> "I got a cake last time and it wasn't good. I'm thinking of getting this one instead. What do you think?"<br><strong>Nion says:</strong> an opinion, plus a follow-up question back to you.</div>
+  </details>
+  <div class="wow"><strong>The "oh, that's cool" beat:</strong> nobody touches the screen, and Nion sounds like a person who knows where you are.</div>
+</section>
+
+<section>
+  <h2>The boundary</h2>
+  <details open>
+    <summary><span class="tag in">In</span> The proof of concept</summary>
+    <div>
+      <ul>
+        <li>Voice in and voice out: you speak, Nion replies aloud</li>
+        <li>Activated by voice ("Hey Nion"); exactly how is a spec decision</li>
+        <li>Knows roughly where you are, for local questions</li>
+        <li>General knowledge, time in other cities, local suggestions (places to eat, getting around)</li>
+        <li>Back-and-forth conversation, including thinking through a decision</li>
+        <li>Addresses you by name</li>
+        <li>One device: a phone with earphones</li>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary><span class="tag later">Later</span> Worth doing, just not now</summary>
+    <div>
+      <ul>
+        <li>Checking messages and email ("you have three unread, want to know who from?")</li>
+        <li>Reading out and managing a to-do list, recurring tasks, reminders</li>
+        <li>Booking and doing things on your behalf</li>
+        <li>Watch and other devices</li>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary><span class="tag cut">Cut</span> Named, with a reason</summary>
+    <div>
+      <ul>
+        <li><strong>A full to-do list or task manager:</strong> the first version is conversation, and you want to avoid overkill.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<footer>Source of truth: <code>devpost/scope.md</code> · This page is a companion and is regenerated after revisions.</footer>
+</div>
+</body>
+</html>

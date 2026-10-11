@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nion — Product Requirements</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --card: #ffffff; --ink: #14172b; --muted: #5b6078; --line: #e2e5f0;
+    --accent: #5b3df5; --accent-soft: #ece8ff; --good: #12805c; --good-soft: #e1f6ee;
+    --later: #a35a00; --later-soft: #fff1d9; --cut: #b3261e; --cut-soft: #fde7e5;
+    --shadow: 0 1px 2px rgba(20,23,43,.06), 0 6px 20px rgba(20,23,43,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1020; --card: #171a30; --ink: #eceefb; --muted: #a2a7c4; --line: #2a2e4d;
+      --accent: #9b86ff; --accent-soft: #261f55; --good: #4fd6a3; --good-soft: #10332a;
+      --later: #ffbe5c; --later-soft: #3a2a0c; --cut: #ff8b84; --cut-soft: #3d1715; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 32px 16px 64px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px; background: var(--later-soft); color: var(--later); }
+  h1 { font-size: 38px; line-height: 1.1; margin: 12px 0 8px; letter-spacing: -.02em; }
+  h1 span { color: var(--accent); }
+  .tagline { font-size: 18px; color: var(--muted); margin: 0; max-width: 700px; }
+  h2 { font-size: 20px; margin: 0 0 10px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-top: 18px; box-shadow: var(--shadow); }
+  p { margin: 0 0 10px; } p:last-child { margin-bottom: 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size: 30px; } }
+  .grid2 > section { margin-top: 18px; }
+  .caption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  /* scope -> now */
+  .expand { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: stretch; }
+  @media (max-width: 700px) { .expand { grid-template-columns: 1fr; } .expand .arrow { transform: rotate(90deg); justify-self: center; } }
+  .expand .box { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--bg); }
+  .expand .box.now { background: var(--accent-soft); border-color: transparent; }
+  .expand .label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .expand .arrow { align-self: center; font-size: 26px; color: var(--accent); }
+  /* walkthrough */
+  .walk { display: grid; grid-template-columns: 230px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 700px) { .walk { grid-template-columns: 1fr; } }
+  .phone { background: #0b0c12; border-radius: 28px; padding: 14px; border: 1px solid #23263a; }
+  .screen { border-radius: 18px; min-height: 250px; padding: 18px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: linear-gradient(160deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.14); color: #e9eaf2; text-align: center; }
+  .screen .name { font-size: 13px; letter-spacing: .3em; text-transform: uppercase; color: #aeb1c6; }
+  .screen .st { font-size: 13px; color: #cfd1e0; min-height: 18px; }
+  .orb { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.28), rgba(255,255,255,.06)); border: 1px solid rgba(255,255,255,.28); }
+  .orb svg { width: 52px; height: 52px; stroke: #f3f4fa; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .orb.pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,.25); } 50% { box-shadow: 0 0 0 14px rgba(255,255,255,0); } }
+  @media (prefers-reduced-motion: reduce) { .orb.pulse { animation: none; } }
+  .stepbox { min-height: 250px; }
+  .bubble { border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+  .bubble.you { background: var(--accent-soft); }
+  .bubble.nion { background: var(--bg); border: 1px solid var(--line); }
+  .bubble .who { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .controls { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .count { color: var(--muted); font-size: 14px; }
+  /* states strip */
+  .states { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 700px) { .states { grid-template-columns: repeat(2, 1fr); } }
+  .state { background: #0b0c12; color: #e9eaf2; border-radius: 14px; padding: 14px 8px; text-align: center; border: 1px solid #23263a; }
+  .state svg { width: 40px; height: 40px; stroke: #f3f4fa; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .state div { font-size: 13px; margin-top: 6px; color: #cfd1e0; }
+  /* reveals */
+  details { border: 1px solid var(--line); border-radius: 12px; margin-top: 10px; background: var(--bg); }
+  summary { cursor: pointer; padding: 12px 14px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details > div { padding: 0 14px 14px 36px; color: var(--muted); }
+  details > div strong { color: var(--ink); }
+  ul { margin: 6px 0 0; padding-left: 20px; } li { margin: 5px 0; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .t-in { background: var(--good-soft); color: var(--good); }
+  .t-later { background: var(--later-soft); color: var(--later); }
+  .t-cut { background: var(--cut-soft); color: var(--cut); }
+  .t-spec { background: var(--accent-soft); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; } tr:first-child td { border-top: 0; }
+  td:first-child { width: 120px; font-weight: 600; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-wait" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16"/><circle cx="24" cy="24" r="3"/></symbol>
+    <symbol id="g-listen" viewBox="0 0 48 48"><rect x="18" y="6" width="12" height="22" rx="6"/><path d="M10 24a14 14 0 0 0 28 0M24 38v6"/></symbol>
+    <symbol id="g-think" viewBox="0 0 48 48"><circle cx="11" cy="24" r="3"/><circle cx="24" cy="24" r="3"/><circle cx="37" cy="24" r="3"/></symbol>
+    <symbol id="g-speak" viewBox="0 0 48 48"><path d="M6 20h6l10-8v24l-10-8H6z"/><path d="M30 17a10 10 0 0 1 0 14M36 12a17 17 0 0 1 0 24"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header>
+  <span class="badge" style="background:var(--good-soft);color:var(--good)">Approved</span>
+  <h1><span>Nion</span> — product requirements</h1>
+  <p class="tagline">A voice-first companion for travelers and anyone on the move. You talk, it talks back, and it's designed for ears, not screens.</p>
+</header>
+
+<section>
+  <h2>From scope to specifics</h2>
+  <div class="expand">
+    <div class="box">
+      <div class="label">Scope said</div>
+      "Nion answers in a spoken voice and asks if they want to narrow it down."
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="box now">
+      <div class="label">Now we know exactly</div>
+      Up to <strong>five</strong> items spoken, then Nion stops and asks whether to continue, narrow, or go deeper. Broad questions get one short clarifying question first. Nothing is ever "go look at the list."
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Walk through a conversation</h2>
+  <p class="caption" style="margin-top:0">Step through an example: asking for places to eat when Nion doesn't know where you are.</p>
+  <div class="walk" style="margin-top:14px">
+    <div class="phone" aria-label="Phone screen preview">
+      <div class="screen">
+        <div class="name">Nion</div>
+        <div class="orb" id="orb"><svg id="orbsvg" viewBox="0 0 48 48"><use href="#g-wait"/></svg></div>
+        <div class="st" id="stlabel">Waiting</div>
+      </div>
+    </div>
+    <div>
+      <div class="stepbox" id="stepbox" aria-live="polite"></div>
+      <div class="controls">
+        <button id="prev" type="button">← Back</button>
+        <button id="next" type="button">Next →</button>
+        <span class="count" id="count"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The four states (no color needed)</h2>
+  <p class="caption" style="margin-top:0">With a monotone look, shape and motion tell you what Nion is doing.</p>
+  <div class="states" style="margin-top:12px">
+    <div class="state"><svg viewBox="0 0 48 48"><use href="#g-wait"/></svg><div>Waiting</div></div>
+    <div class="state"><svg viewBox="0 0 48 48"><use href="#g-listen"/></svg><div>Listening</div></div>
+    <div class="state"><svg viewBox="0 0 48 48"><use href="#g-think"/></svg><div>Thinking</div></div>
+    <div class="state"><svg viewBox="0 0 48 48"><use href="#g-speak"/></svg><div>Speaking</div></div>
+  </div>
+  <p class="caption">Icons here are illustrations of the idea; the final look is decided during the build.</p>
+</section>
+
+<div class="grid2">
+  <section>
+    <h2>Screens</h2>
+    <p><strong>Main:</strong> a medium state icon and the name Nion. Nothing else.</p>
+    <p><strong>History:</strong> past conversations as transcripts you can open and copy.</p>
+    <p class="caption">Main ↔ History. No other screens.</p>
+  </section>
+  <section>
+    <h2>Look and feel</h2>
+    <ul>
+      <li>Modern, sleek, realistic</li>
+      <li>Monotone, between black and white</li>
+      <li>Glass-like, frosted surfaces</li>
+      <li>Not colorful; no big chunky buttons</li>
+    </ul>
+  </section>
+</div>
+
+<section>
+  <h2>Behavior and how we'll know it works</h2>
+  <p class="caption" style="margin-top:0">Open each area. Every criterion is something you can check by watching or listening.</p>
+
+  <details open>
+    <summary>Voice conversation</summary>
+    <div><ul>
+      <li>"Hey Nion" plus a question gets a spoken answer without touching the screen</li>
+      <li>The state icon visibly differs for waiting, listening, thinking and speaking</li>
+      <li>"Hey Nion, let's start a conversation" lets you keep talking without repeating the wake phrase</li>
+      <li>"End the conversation" ends it, and Nion stops listening</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary>Designed for ears, not screens</summary>
+    <div><ul>
+      <li>Short spoken answers</li>
+      <li>At most five items, then Nion asks whether you want more, narrower, or deeper</li>
+      <li>Never says to look at a screen, link or list</li>
+      <li>A too-broad question gets one short clarifying question first (e.g. which Nobel field)</li>
+      <li>Rambling is fine: Nion gets the point, and for a long or messy message says back in one sentence what it understood before answering</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary>Questions Nion can answer</summary>
+    <div><ul>
+      <li>"What is today's date?" → "Today's date is October 11, Sunday"</li>
+      <li>"Time in Denver?" → correct current time, spoken</li>
+      <li>"Places to eat around me, ranked by price" → up to five with price and cuisine, then a follow-up question</li>
+      <li>Airport to Union Station → a few spoken options</li>
+      <li>General and world knowledge, spoken</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary>Current events and sources</summary>
+    <div><ul>
+      <li>Uses multiple sources and says aloud where each point comes from</li>
+      <li>Market questions get a short spoken summary; Nion does <strong>not</strong> advise what to buy or sell</li>
+      <li>If no source covers it: "I couldn't find any source that mentioned this"</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary>Where am I?</summary>
+    <div><ul>
+      <li>If Nion doesn't know your location, it says aloud: allow location services, or just tell me where you are</li>
+      <li>Saying "I'm in Miami" lets it continue the earlier question</li>
+      <li>City, state or a street address all work</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary>A partner with a point of view</summary>
+    <div><ul>
+      <li>Describe a small decision (like the cake) and Nion gives an opinion and asks a follow-up</li>
+      <li>Asks your name once by voice the first time you use it, and remembers it</li>
+      <li>Greets you by name at the start of each new conversation, not on every turn</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary>History and transcripts</summary>
+    <div><ul>
+      <li>Conversations appear in History with their transcript</li>
+      <li>Open one and copy its text</li>
+    </ul></div>
+  </details>
+</section>
+
+<section>
+  <h2>States and boundaries</h2>
+  <table>
+    <tr><td>First use</td><td>Needs microphone access, asked with a short explanation. Location is asked only when a local question needs it, by voice. <span class="tag t-spec">assumption</span> Nion then asks your name once, by voice.</td></tr>
+    <tr><td>Not found</td><td>Nion says it couldn't find a source for the question.</td></tr>
+    <tr><td>No location</td><td>Nion asks aloud: allow location, or tell me where you are.</td></tr>
+    <tr><td>Persists</td><td>Past conversations, transcripts and your name stay on the device between sessions.</td></tr>
+    <tr><td>Privacy</td><td>Transcripts belong to the person; nothing is shared.</td></tr>
+  </table>
+</section>
+
+<div class="grid2">
+  <section>
+    <h2><span class="tag t-in">Building</span></h2>
+    <ul>
+      <li>Main screen with the four-state icon</li>
+      <li>Voice in and voice out</li>
+      <li>Conversation started and ended by voice</li>
+      <li>Five-item rule and clarifying questions</li>
+      <li>Date, time, local, directions, general and current-events questions with sources</li>
+      <li>Spoken fallback for missing location</li>
+      <li>Opinions, follow-ups, asks your name once and greets you by name per conversation</li>
+      <li>History with copyable transcripts</li>
+    </ul>
+  </section>
+  <section>
+    <h2><span class="tag t-later">Deferred</span></h2>
+    <ul>
+      <li>Screen-off and background listening, floating dot</li>
+      <li>Settings for speed, tone and voice</li>
+      <li>Learning from past conversations</li>
+      <li>Your own stocks and portfolio</li>
+      <li>Messages, email, to-dos, reminders, booking</li>
+      <li>Custom catchphrase</li>
+      <li>A tidied-up (Wispr Flow-style) transcript of what you said</li>
+      <li>Watch and other devices</li>
+    </ul>
+  </section>
+</div>
+
+<section>
+  <h2><span class="tag t-cut">Non-goals</span></h2>
+  <ul>
+    <li>No investment advice. Nion summarizes markets only.</li>
+    <li>No lists or links as the answer. It is voice-first.</li>
+    <li>No acting on your accounts in this version.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Open questions</h2>
+  <details>
+    <summary><span class="tag t-spec">In spec</span> Pronunciation and the wake phrase</summary>
+    <div>"Nion" may be heard as "Neon" or similar. Decide how it's pronounced and that the wake phrase tolerates variants.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-spec">In spec</span> Where current information comes from</summary>
+    <div>News, local places, directions. A technical decision.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">Can wait</span> Delete a conversation from History?</summary>
+    <div>You mentioned deleting early on but didn't reconfirm. Default is Later.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">Can wait</span> Interrupting Nion mid-sentence</summary>
+    <div>What happens if you talk while Nion is speaking.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">Can wait</span> Nion's voice and tone</summary>
+    <div>Assumed: one default voice, warm and friendly. Settings are Later.</div>
+  </details>
+</section>
+
+<footer>Source of truth: <code>devpost/prd.md</code> · This page is a companion and is regenerated after revisions.</footer>
+</div>
+
+<script>
+(function () {
+  var steps = [
+    { icon: "g-wait", label: "Waiting", pulse: false, bubbles: [],
+      note: "Nion is open and waiting. The phone is in a pocket and the person has earphones in." },
+    { icon: "g-listen", label: "Listening", pulse: true, bubbles: [{ who: "you", t: "Hey Nion, what are some places to eat around me?" }],
+      note: "The icon changes to listening." },
+    { icon: "g-speak", label: "Speaking", pulse: true, bubbles: [{ who: "you", t: "Hey Nion, what are some places to eat around me?" },
+      { who: "nion", t: "I can't tell where you are yet. You can allow location services, or just tell me where you are." }],
+      note: "No location, so Nion asks out loud, not with a pop-up." },
+    { icon: "g-listen", label: "Listening", pulse: true, bubbles: [{ who: "you", t: "I'm in Brickell, Miami." }],
+      note: "A city, a state or a street address all work." },
+    { icon: "g-think", label: "Thinking", pulse: true, bubbles: [{ who: "nion", t: "(looking up places near Brickell...)" }],
+      note: "A moment to look it up." },
+    { icon: "g-speak", label: "Speaking", pulse: true, bubbles: [{ who: "nion", t: "Hey Sanjeev, here are five places by price: [name, price, cuisine] ... five of them. Want me to keep going, or narrow it down?" }],
+      note: "At most five items, then Nion stops and asks. No list on screen to read." },
+    { icon: "g-listen", label: "Listening", pulse: true, bubbles: [{ who: "you", t: "Narrow it to Italian." }],
+      note: "The conversation continues by voice, with no wake phrase needed in a started conversation." }
+  ];
+  var i = 0;
+  var box = document.getElementById("stepbox"), orb = document.getElementById("orb"),
+      svg = document.getElementById("orbsvg"), lab = document.getElementById("stlabel"),
+      prev = document.getElementById("prev"), next = document.getElementById("next"), count = document.getElementById("count");
+  function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function render() {
+    var s = steps[i];
+    svg.innerHTML = '<use href="#' + s.icon + '"/>';
+    lab.textContent = s.label;
+    orb.className = "orb" + (s.pulse ? " pulse" : "");
+    var h = "";
+    s.bubbles.forEach(function (b) {
+      h += '<div class="bubble ' + b.who + '"><div class="who">' + (b.who === "you" ? "You say" : "Nion says") + '</div>' + esc(b.t) + '</div>';
+    });
+    h += '<p class="caption">' + esc(s.note) + '</p>';
+    box.innerHTML = h;
+    prev.disabled = i === 0; next.disabled = i === steps.length - 1;
+    count.textContent = "Step " + (i + 1) + " of " + steps.length;
+  }
+  prev.addEventListener("click", function () { if (i > 0) { i--; render(); } });
+  next.addEventListener("click", function () { if (i < steps.length - 1) { i++; render(); } });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nion — Technical Spec</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --card: #ffffff; --ink: #14172b; --muted: #5b6078; --line: #e2e5f0;
+    --accent: #5b3df5; --accent-soft: #ece8ff; --good: #12805c; --good-soft: #e1f6ee;
+    --later: #a35a00; --later-soft: #fff1d9; --cut: #b3261e; --cut-soft: #fde7e5;
+    --shadow: 0 1px 2px rgba(20,23,43,.06), 0 6px 20px rgba(20,23,43,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1020; --card: #171a30; --ink: #eceefb; --muted: #a2a7c4; --line: #2a2e4d;
+      --accent: #9b86ff; --accent-soft: #261f55; --good: #4fd6a3; --good-soft: #10332a;
+      --later: #ffbe5c; --later-soft: #3a2a0c; --cut: #ff8b84; --cut-soft: #3d1715; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px; background: var(--later-soft); color: var(--later); }
+  h1 { font-size: 38px; line-height: 1.1; margin: 12px 0 8px; letter-spacing: -.02em; }
+  h1 span { color: var(--accent); }
+  .tagline { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 20px; margin: 0 0 10px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-top: 18px; box-shadow: var(--shadow); }
+  p { margin: 0 0 10px; } p:last-child { margin-bottom: 0; }
+  .caption { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size: 30px; } }
+  .grid2 > section { margin-top: 18px; }
+  .four { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .four { grid-template-columns: repeat(2, 1fr); } }
+  .piece { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .piece b { display: block; margin-bottom: 4px; }
+  .piece span { color: var(--muted); font-size: 14px; }
+  /* diagram */
+  .diagram { width: 100%; height: auto; display: block; }
+  .diagram text { font-family: inherit; fill: var(--ink); }
+  .diagram .frame { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .diagram .flabel { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; fill: var(--muted); }
+  .diagram .node rect { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; transition: all .2s; }
+  .diagram .node text.t { font-size: 13px; font-weight: 600; }
+  .diagram .node text.s { font-size: 11px; fill: var(--muted); }
+  .diagram .node.on rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .diagram .arrow { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+  .diagram .lab { font-size: 11px; fill: var(--muted); }
+  /* stepper */
+  .stepbox { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-height: 110px; margin-top: 12px; }
+  .stepbox .n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; margin-right: 8px; }
+  .stepbox h3 { margin: 0 0 6px; font-size: 17px; display: flex; align-items: center; }
+  .stepbox code, td code, li code, p code { background: var(--accent-soft); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  .controls { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .count { color: var(--muted); font-size: 14px; }
+  /* reveals */
+  details { border: 1px solid var(--line); border-radius: 12px; margin-top: 10px; background: var(--bg); }
+  summary { cursor: pointer; padding: 12px 14px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details > div { padding: 0 14px 14px 36px; color: var(--muted); }
+  details > div strong { color: var(--ink); }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .t-file { background: var(--accent-soft); color: var(--accent); text-transform: none; letter-spacing: 0; font-family: ui-monospace, Menlo, monospace; }
+  .t-in { background: var(--good-soft); color: var(--good); }
+  .t-later { background: var(--later-soft); color: var(--later); }
+  .t-cut { background: var(--cut-soft); color: var(--cut); }
+  ul { margin: 6px 0 0; padding-left: 20px; } li { margin: 5px 0; }
+  pre { background: #0b0c12; color: #e9eaf2; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 8px 0 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td, th { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; text-align: left; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-top: 0; }
+  .callout { border-left: 4px solid var(--later); background: var(--later-soft); border-radius: 8px; padding: 12px 14px; margin-top: 12px; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="badge" style="background:var(--good-soft);color:var(--good)">Approved</span>
+  <h1><span>Nion</span> — technical spec</h1>
+  <p class="tagline">How the app is built: a Chrome page that listens and speaks, a small server that guards your key, and Claude as the brain.</p>
+</header>
+
+<section>
+  <h2>In plain language</h2>
+  <div class="four">
+    <div class="piece"><b>1. The page</b><span>Runs in Chrome. Hears you, speaks aloud, shows the state icon, and keeps your name and history in the browser.</span></div>
+    <div class="piece"><b>2. A small server</b><span>Runs on your laptop. Holds your Claude API key so the page never sees it.</span></div>
+    <div class="piece"><b>3. Claude</b><span>The brain. Answers in a short, spoken style and can search the web with sources.</span></div>
+    <div class="piece"><b>4. Chrome speaks</b><span>The page reads the answer aloud, then goes back to listening.</span></div>
+  </div>
+  <div class="callout"><strong>One browser rule:</strong> you tap the icon <strong>once</strong> to start, because browsers won't open the microphone or speak without a tap. After that, everything is by voice.</div>
+</section>
+
+<section>
+  <h2>The system, and a walk through one question</h2>
+  <p class="caption" style="margin-top:0">Step through "Hey Nion, what is today's date?" and watch which pieces light up.</p>
+  <svg class="diagram" viewBox="0 0 900 390" role="img" aria-labelledby="dt dd" style="margin-top:12px">
+    <title id="dt">Nion architecture</title>
+    <desc id="dd">The Chrome page contains hearing, wake phrase matching, a conversation controller, speaking, location and browser storage. It talks to a small server on the laptop, which calls Claude with web search.</desc>
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor" style="color:var(--muted)"/>
+      </marker>
+    </defs>
+    <rect class="frame" x="10" y="10" width="585" height="370" rx="16"/>
+    <text class="flabel" x="26" y="32">Chrome — the page</text>
+    <rect class="frame" x="620" y="10" width="270" height="190" rx="16"/>
+    <text class="flabel" x="636" y="32">Your laptop — small server</text>
+    <rect class="frame" x="620" y="215" width="270" height="165" rx="16"/>
+    <text class="flabel" x="636" y="237">Claude API</text>
+
+    <g class="node" id="n-hear"><rect x="30" y="52" width="165" height="64" rx="10"/><text class="t" x="112" y="80" text-anchor="middle">Hearing</text><text class="s" x="112" y="98" text-anchor="middle">speech-in.js</text></g>
+    <g class="node" id="n-wake"><rect x="215" y="52" width="165" height="64" rx="10"/><text class="t" x="297" y="80" text-anchor="middle">Wake phrase check</text><text class="s" x="297" y="98" text-anchor="middle">wake.js</text></g>
+    <g class="node" id="n-ctrl"><rect x="400" y="52" width="180" height="64" rx="10"/><text class="t" x="490" y="80" text-anchor="middle">Conversation controller</text><text class="s" x="490" y="98" text-anchor="middle">app.js</text></g>
+
+    <g class="node" id="n-speak"><rect x="30" y="148" width="165" height="64" rx="10"/><text class="t" x="112" y="176" text-anchor="middle">Speaking</text><text class="s" x="112" y="194" text-anchor="middle">speech-out.js</text></g>
+    <g class="node" id="n-loc"><rect x="215" y="148" width="165" height="64" rx="10"/><text class="t" x="297" y="176" text-anchor="middle">Location</text><text class="s" x="297" y="194" text-anchor="middle">location.js</text></g>
+    <g class="node" id="n-store"><rect x="400" y="148" width="180" height="64" rx="10"/><text class="t" x="490" y="176" text-anchor="middle">Name + history</text><text class="s" x="490" y="194" text-anchor="middle">storage.js (browser)</text></g>
+
+    <g class="node" id="n-ui"><rect x="30" y="244" width="550" height="54" rx="10"/><text class="t" x="305" y="268" text-anchor="middle">State icon + status line</text><text class="s" x="305" y="286" text-anchor="middle">ui.js · index.html · styles.css</text></g>
+    <g class="node" id="n-hist"><rect x="30" y="312" width="550" height="54" rx="10"/><text class="t" x="305" y="336" text-anchor="middle">History screen: transcripts you can copy</text><text class="s" x="305" y="354" text-anchor="middle">history.html · history.js</text></g>
+
+    <g class="node" id="n-api"><rect x="640" y="52" width="230" height="56" rx="10"/><text class="t" x="755" y="76" text-anchor="middle">POST /api/chat</text><text class="s" x="755" y="94" text-anchor="middle">server/index.js</text></g>
+    <g class="node" id="n-brain"><rect x="640" y="128" width="230" height="56" rx="10"/><text class="t" x="755" y="152" text-anchor="middle">Brain + Nion's rules</text><text class="s" x="755" y="170" text-anchor="middle">brain.js · prompt.js</text></g>
+    <g class="node" id="n-claude"><rect x="640" y="258" width="230" height="96" rx="10"/><text class="t" x="755" y="288" text-anchor="middle">Answer + web search</text><text class="s" x="755" y="308" text-anchor="middle">short spoken reply</text><text class="s" x="755" y="324" text-anchor="middle">with named sources</text></g>
+
+    <path class="arrow" d="M195 84 H213" marker-end="url(#ah)"/>
+    <path class="arrow" d="M380 84 H398" marker-end="url(#ah)"/>
+    <path class="arrow" d="M580 80 H638" marker-end="url(#ah)"/>
+    <path class="arrow" d="M755 108 V126" marker-end="url(#ah)"/>
+    <path class="arrow" d="M755 184 V256" marker-end="url(#ah)"/>
+  </svg>
+
+  <div class="stepbox" id="stepbox" aria-live="polite"></div>
+  <div class="controls">
+    <button id="prev" type="button">← Back</button>
+    <button id="next" type="button">Next →</button>
+    <span class="count" id="count"></span>
+  </div>
+  <p class="caption">PRD ref: <code>prd.md &gt; The Core Journey</code>. In a started conversation, the wake phrase isn't needed until you say "End the conversation."</p>
+</section>
+
+<section>
+  <h2>Components</h2>
+  <p class="caption" style="margin-top:0">Each one lists the PRD behavior it serves and the file it lives in.</p>
+
+  <details open>
+    <summary>Main screen <span class="tag t-file">index.html · styles.css · ui.js</span></summary>
+    <div>Wordmark, the state icon, a one-line status caption, and a quiet History link. The first tap on the icon turns Nion on; after that no taps are needed.<br><strong>PRD:</strong> <code>Screens and Layout</code>, <code>Voice conversation</code></div>
+  </details>
+  <details>
+    <summary>Conversation controller <span class="tag t-file">app.js</span></summary>
+    <div>The single place that decides: waiting, listening, thinking, speaking, and whether a conversation is active. It stops listening while Nion speaks, and resumes after.<br><strong>PRD:</strong> <code>Voice conversation</code>, <code>States and Boundaries</code></div>
+  </details>
+  <details>
+    <summary>Hearing <span class="tag t-file">speech-in.js</span></summary>
+    <div>Wraps Chrome's speech recognition. Listens continuously in English and restarts itself when the browser stops. Paused while Nion speaks.<br><strong>PRD:</strong> <code>Voice conversation</code></div>
+  </details>
+  <details>
+    <summary>Wake phrase and commands <span class="tag t-file">wake.js · tests/wake.test.js</span></summary>
+    <div>A small testable function: is this "Hey Nion ..."? What's the question after it? Is it "let's start a conversation" or "end the conversation"? Accepts several spellings, since Chrome may write "Neon" or "Nyan."<br><strong>PRD:</strong> <code>Voice conversation</code></div>
+  </details>
+  <details>
+    <summary>Speaking <span class="tag t-file">speech-out.js</span></summary>
+    <div>Wraps Chrome's speech synthesis. Picks the best English voice on the machine, speaks the reply, and reports when it's done.<br><strong>PRD:</strong> <code>Designed for ears, not screens</code></div>
+  </details>
+  <details>
+    <summary>Location <span class="tag t-file">location.js</span></summary>
+    <div>Asks the browser for location only when a question needs it. If denied or unavailable, Nion asks by voice: allow location, or say where you are. A spoken place is remembered for the conversation.<br><strong>PRD:</strong> <code>Where am I</code></div>
+  </details>
+  <details>
+    <summary>The brain (server) <span class="tag t-file">server/index.js · brain.js · prompt.js</span></summary>
+    <div>Builds the prompt and calls Claude with web search on. Nion's rules in the prompt: short spoken answers, no lists or links, at most five items then ask, one clarifying question for broad questions, understand rambling speech and say back in one sentence what it understood when a message is long, name news sources aloud, say so when nothing is found, summarize markets but never advise, opinion plus a follow-up on decisions, greet by name only when a conversation starts. A local question with no location returns a marker that the page turns into the spoken fallback.<br><strong>PRD:</strong> <code>Designed for ears, not screens</code>, <code>Questions Nion can answer</code>, <code>Current events and sources</code>, <code>A partner with a point of view</code></div>
+  </details>
+  <details>
+    <summary>Name and conversations <span class="tag t-file">storage.js</span></summary>
+    <div>Saves your name once and each conversation's turns in the browser, so History can show them.<br><strong>PRD:</strong> <code>History and transcripts</code>, <code>States and Boundaries</code></div>
+  </details>
+  <details>
+    <summary>History screen <span class="tag t-file">history.html · history.js</span></summary>
+    <div>Lists past conversations, newest first. Open one to see its transcript and copy it.<br><strong>PRD:</strong> <code>History and transcripts</code></div>
+  </details>
+</section>
+
+<div class="grid2">
+  <section>
+    <h2>Where data lives</h2>
+    <table>
+      <tr><th>Data</th><th>Where</th></tr>
+      <tr><td>Your name</td><td>Browser storage; stays</td></tr>
+      <tr><td>Conversations</td><td>Browser storage; stays, shown in History</td></tr>
+      <tr><td>Current messages, location, conversation mode</td><td>In the page's memory; gone when the tab closes</td></tr>
+      <tr><td>API key, model name</td><td><code>.env</code> on your laptop</td></tr>
+    </table>
+    <p class="caption">No database, no accounts.</p>
+  </section>
+  <section>
+    <h2>Look and feel</h2>
+    <ul>
+      <li>Greys only, near-black to near-white; no accent colors</li>
+      <li>Frosted glass panels with a soft light border</li>
+      <li>System sans font; "NION" in small capitals, wide spacing</li>
+      <li>Four state icons told apart by shape and motion: ring, microphone, three dots, speaker waves</li>
+      <li>Motion off for "reduce motion"</li>
+    </ul>
+  </section>
+</div>
+
+<section>
+  <h2>File structure</h2>
+<pre>voice-companion/
+├── server/
+│   ├── index.js          # Express: serves public/ and POST /api/chat
+│   ├── brain.js          # Calls Claude (web search on); returns reply + sources
+│   └── prompt.js         # Nion's spoken-style rules
+├── public/
+│   ├── index.html        # Main screen
+│   ├── history.html      # History screen
+│   ├── css/styles.css    # Monotone glass look, icon animations
+│   └── js/
+│       ├── app.js        # Conversation controller
+│       ├── speech-in.js  # Hearing
+│       ├── speech-out.js # Speaking
+│       ├── wake.js       # Wake phrase + voice commands
+│       ├── location.js   # Geolocation + spoken-place fallback
+│       ├── storage.js    # Name + conversations (browser)
+│       ├── ui.js         # State icon + status line
+│       └── history.js    # History list + transcript
+├── tests/wake.test.js    # Checks the wake phrase matcher
+├── devpost/              # Planning docs
+├── .env.example          # Setting names, no secrets
+├── LICENSE               # MIT
+├── package.json
+└── README.md</pre>
+</section>
+
+<section>
+  <h2>How to run it</h2>
+  <ul>
+    <li><code>npm install</code></li>
+    <li>Copy <code>.env.example</code> to <code>.env</code> and add your own Claude API key (never in chat or the repo)</li>
+    <li><code>npm start</code>, then open <code>http://localhost:3000</code> in Chrome, tap once, allow the microphone</li>
+    <li>Record the laptop screen with earphones in for the demo. A hosted phone version is an optional stretch.</li>
+  </ul>
+</section>
+
+<div class="grid2">
+  <section>
+    <h2>Where it will break, and what happens</h2>
+    <ul>
+      <li><strong>Wake phrase not recognized</strong> → several spellings accepted; tapping the icon is the backup</li>
+      <li><strong>Claude or search slow or failing</strong> → icon stays in "thinking," then Nion says it's having trouble reaching its sources</li>
+      <li><strong>Location denied</strong> → asks by voice: allow it, or say where you are</li>
+      <li><strong>Safari or Firefox</strong> → a screen says to use Chrome</li>
+      <li><strong>No API key</strong> → server stops at startup and names <code>.env</code></li>
+    </ul>
+  </section>
+  <section>
+    <h2>What was simplified</h2>
+    <ul>
+      <li>Browser speech instead of a paid voice service (one outside service only)</li>
+      <li>One tap to start (browser rule)</li>
+      <li>Wake phrase by text matching, not a wake-word engine</li>
+      <li>No interrupting mid-sentence</li>
+      <li>Browser storage instead of a database</li>
+      <li>No streaming of the reply</li>
+      <li>Chrome only; laptop first</li>
+    </ul>
+  </section>
+</div>
+
+<section>
+  <h2>Decisions and open issues</h2>
+  <details open>
+    <summary><span class="tag t-in">Your choices</span></summary>
+    <div><ul>
+      <li>Web app, laptop first as the safe fallback; phone is also attempted, time-boxed and tested early. If the phone works well it becomes the headline demo; if not, the laptop recording is the submission. (On an iPhone every browser uses Apple's engine with weak speech support; Android with Chrome is the better bet.)</li>
+      <li>Claude as the brain; Claude is the only outside service</li>
+      <li>Start with Sonnet 5.5 at low effort; change later if it feels slow</li>
+      <li>Public GitHub repo plus a recorded demo; deployment optional</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">For you to confirm</span> Derived by me</summary>
+    <div><ul>
+      <li>Express server, plain JavaScript, Node's own <code>--env-file</code></li>
+      <li>The one-tap start, the location marker, wake-phrase spellings</li>
+      <li>A small automated test for the wake phrase matcher only; everything else checked by hand against the PRD</li>
+    </ul></div>
+  </details>
+  <details>
+    <summary><span class="tag t-in">Your question</span> How will we know if it's too slow?</summary>
+    <div>During the build, time five sample questions from the end of your speech to the first spoken word: a plain question, the date, a time in another city, a place search, and a news question. Compare Sonnet 5.5 and Haiku 5.5 and decide together.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">Open</span> Does Chrome hear "Nion" reliably?</summary>
+    <div>Test early with real speech. Pronunciation (NEE-on or NYE-un) is still to be chosen.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">Open</span> How is location passed to web search?</summary>
+    <div>The browser gives coordinates; search may want a city. If needed, a small lookup is added in the build.</div>
+  </details>
+  <details>
+    <summary><span class="tag t-later">Can wait</span> Delete in History, interrupting, Nion's default voice</summary>
+    <div>All still Later.</div>
+  </details>
+</section>
+
+<footer>Source of truth: <code>devpost/spec.md</code> · This page is a companion and is regenerated after revisions.</footer>
+</div>
+
+<script>
+(function () {
+  var steps = [
+    { on: ["n-ui", "n-ctrl", "n-hear"], title: "Open and tap",
+      text: "You open <code>http://localhost:3000</code> in Chrome and tap the icon once. Chrome asks for microphone access." },
+    { on: ["n-speak", "n-store"], title: "First-use name",
+      text: "No name is saved yet, so Nion says \"Hi, I'm Nion. What should I call you?\" aloud. Your answer is saved in the browser." },
+    { on: ["n-hear", "n-wake", "n-ui"], title: "Waiting",
+      text: "The icon shows the waiting state. The page keeps listening and ignores anything without the wake phrase." },
+    { on: ["n-hear", "n-wake", "n-ctrl", "n-ui"], title: "You say: \"Hey Nion, what is today's date?\"",
+      text: "The page hears the text, sees the wake phrase, and keeps \"what is today's date?\". The icon changes to listening, then thinking." },
+    { on: ["n-ctrl", "n-api"], title: "Ask the server",
+      text: "The page sends the conversation, your name, the device's date, time and time zone, and your location if it has one, to <code>/api/chat</code>." },
+    { on: ["n-api", "n-brain", "n-claude"], title: "Ask Claude",
+      text: "The server builds the prompt with Nion's spoken-style rules and calls Claude, with web search allowed. It gets back a short reply and any sources." },
+    { on: ["n-speak", "n-ctrl", "n-ui"], title: "Speak",
+      text: "The page reads the reply aloud, \"Hey Sanjeev, today's date is October 11, Sunday,\" and the icon shows speaking. Listening is paused while it talks, then resumes." },
+    { on: ["n-store"], title: "Save",
+      text: "The exchange is added to the current conversation in the browser's storage." },
+    { on: ["n-hist", "n-store"], title: "Later: History",
+      text: "Open the History screen to see the conversation as a transcript you can copy." }
+  ];
+  var i = 0;
+  var all = ["n-hear","n-wake","n-ctrl","n-speak","n-loc","n-store","n-ui","n-hist","n-api","n-brain","n-claude"];
+  var box = document.getElementById("stepbox"), prev = document.getElementById("prev"),
+      next = document.getElementById("next"), count = document.getElementById("count");
+  function render() {
+    var s = steps[i];
+    all.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.setAttribute("class", "node" + (s.on.indexOf(id) >= 0 ? " on" : ""));
+    });
+    box.innerHTML = '<h3><span class="n">' + (i + 1) + '</span>' + s.title + '</h3><p>' + s.text + '</p>';
+    prev.disabled = i === 0; next.disabled = i === steps.length - 1;
+    count.textContent = "Step " + (i + 1) + " of " + steps.length;
+  }
+  prev.addEventListener("click", function () { if (i > 0) { i--; render(); } });
+  next.addEventListener("click", function () { if (i < steps.length - 1) { i++; render(); } });
+  render();
+})();
+</script>
+</body>
+</html>
