@@ -88,6 +88,8 @@ function makeElement() {
   return {
     textContent: "",
     hidden: false,
+    dataset: {},
+    setAttribute() {},
     handlers: {},
     addEventListener(type, handler) {
       this.handlers[type] = handler;
@@ -277,4 +279,34 @@ test("talking during the window keeps it open", async () => {
   assert.equal(waitingForClose(), 1, "one 15 second timer is running");
   await hear("and in", { final: false }); // you start talking
   assert.equal(waitingForClose(), 1, "restarted, not duplicated");
+});
+
+test("the listening icon shows as soon as someone talks to Nion, and goes away if it wasn't for Nion", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.match(status(), /Waiting\. Say/);
+
+  // Chatter that isn't for Nion does not flash the listening icon.
+  await hear("so anyway I told him that", { final: false });
+  assert.match(status(), /Waiting\. Say/);
+
+  // The wake phrase being heard does, even before the sentence is finished.
+  await hear("hey nion what is", { final: false });
+  assert.match(status(), /Listening/);
+
+  // ...and if the finished sentence turns out not to be for Nion, it goes back to waiting.
+  await hear("so anyway I was saying");
+  assert.match(status(), /Waiting\. Say/);
+  assert.equal(fetches.length, 0);
+});
+
+test("in the follow-up window, any speech shows the listening icon", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the time in Denver");
+  fetches[0].reply("It's one seventeen in Denver right now.");
+  await tick();
+  await finishSpeaking();
+  assert.match(status(), /follow-up/i);
+
+  await hear("and in", { final: false });
+  assert.match(status(), /Listening/);
 });

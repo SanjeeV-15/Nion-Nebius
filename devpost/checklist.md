@@ -39,7 +39,7 @@ Build mode: learn
   Learner check: Open the link on your phone in Chrome, tap once, allow the microphone, say "Hey Nion, what is today's date?" and tell me exactly what happens (nothing heard, wrong words, or it works).
   Commit: `Add phone check instructions`
 
-- [ ] **4. Nion looks like Nion: a glass state icon that shows waiting, listening, thinking and speaking**
+- [x] **4. Nion looks like Nion: a glass state icon that shows waiting, listening, thinking and speaking**
   Becomes usable: The same voice loop, now with the monotone glass look and one medium icon that changes shape and motion for each of the four states.
   Why now: Conversation mode and the phone check are in place, so now the screen gets its real look. Everything after this slice (search, location, History) shows up in that look.
   PRD ref: `prd.md > Screens and Layout`, `prd.md > Look and Feel`, `prd.md > States and Boundaries`

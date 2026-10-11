@@ -13,10 +13,12 @@
 // or speaking, it stops at once and listens to you, like a person would.
 
 import { decide } from "./conversation.js";
+import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName } from "./storage.js";
+import { showState } from "./ui.js";
 
 const el = {
   start: document.getElementById("start"),
@@ -99,6 +101,7 @@ function setState(next) {
   if (next !== state) trace("state", `${state} -> ${next}`);
   state = next;
   el.status.textContent = statusText();
+  showState(next); // the icon
 }
 
 function showProblem(message) {
@@ -192,6 +195,15 @@ function handleInterim(text) {
     trace("interim", `“${text}”${busy ? (interrupting ? " (someone is talking)" : " (Nion's own voice, ignored)") : ""}`);
   }
   if (interrupting) interrupt();
+
+  // Someone is talking to Nion: show the listening icon right away, not only when
+  // Chrome has finished the sentence. In wake mode that means the wake phrase was
+  // heard; in a conversation or the follow-up window, any speech counts.
+  if (!busy && state === "waiting") {
+    const forNion = session.active || session.followUp || parseUtterance(text).woke;
+    const ownVoice = Date.now() < echo.until && isEcho(text, echo.text);
+    if (forNion && !ownVoice) setState("listening");
+  }
 }
 
 function handleHeard(text) {
@@ -220,6 +232,8 @@ function handleHeard(text) {
 
   switch (action.type) {
     case "ignore":
+      // It turned out not to be for Nion: stop showing the listening icon.
+      if (state === "listening" && session.awaiting === null) setState("waiting");
       return;
 
     case "setName":
