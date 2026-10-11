@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nion — App Map</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --card: #ffffff; --ink: #14172b; --muted: #5b6078; --line: #dfe2ee;
+    --accent: #3b3fd8; --accent-soft: #e9eafd; --good: #12805c; --good-soft: #e1f6ee;
+    --code-bg: #eef0f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1020; --card: #171a30; --ink: #eceefb; --muted: #a2a7c4; --line: #2a2e4d;
+      --accent: #9aa0ff; --accent-soft: #232650; --good: #4fd6a3; --good-soft: #10332a;
+      --code-bg: #20244a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 "ITC Franklin Gothic", "Franklin Gothic Medium", "Franklin Gothic Book", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 34px; line-height: 1.1; margin: 0 0 6px; letter-spacing: -.01em; }
+  h2 { font-size: 20px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0; max-width: 700px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-top: 16px; }
+  p { margin: 0 0 10px; } p:last-child { margin-bottom: 0; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 6px; font: 0.88em ui-monospace, Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); padding: 12px 14px; border-radius: 10px; overflow-x: auto; margin: 8px 0 0; font: 0.88em/1.5 ui-monospace, Menlo, Consolas, monospace; }
+  .pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 8px; }
+  .piece { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--bg); }
+  .piece b { display: block; margin-bottom: 2px; }
+  .piece span { color: var(--muted); font-size: 14px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: inherit; fill: var(--ink); }
+  .box { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+  .hot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  .store { fill: var(--good-soft); stroke: var(--good); stroke-width: 1.5; }
+  .arrow { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+  .small { font-size: 11px; fill: var(--muted); }
+  .t { font-size: 13px; font-weight: 600; }
+  details { border: 1px solid var(--line); border-radius: 12px; margin-top: 10px; background: var(--bg); }
+  summary { cursor: pointer; padding: 12px 14px; font-weight: 600; }
+  summary:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  details > div { padding: 0 14px 14px; color: var(--muted); }
+  details > div strong, details > div code { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td, th { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; text-align: left; }
+  th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .note { color: var(--muted); font-size: 14px; }
+  .practice { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
+  footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Nion — app map</h1>
+  <p class="sub">A one-page guide to how Nion is built, so you know where things live and where to start when you want to change something. It is a snapshot of the code at commit <code>77cd897</code>; the code may move on, so check names against the source.</p>
+</header>
+
+<section>
+  <h2>What it is</h2>
+  <p>Nion is a hands-free voice companion, designed for ears and not screens. You say "Hey Nion", ask something out loud, and it answers out loud: short, honest about what it knows, with its sources named. It has four main pieces.</p>
+  <div class="pieces">
+    <div class="piece"><b>The page</b><span><code>public/</code> runs in Chrome. It hears you, decides what you meant, speaks, shows the icon, and keeps History.</span></div>
+    <div class="piece"><b>The server</b><span><code>server/</code> is a small Node program. It holds your API key and asks Claude. The page never sees the key.</span></div>
+    <div class="piece"><b>Claude</b><span>The brain. It writes the answer and can search the web, guided by the rules in <code>server/prompt.js</code>.</span></div>
+    <div class="piece"><b>The tests</b><span><code>tests/</code> checks each behavior without a microphone or a key. <code>scripts/</code> holds the paid checks.</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>One action, start to finish</h2>
+  <p>You say <strong>"Hey Neon, what's the time in Denver?"</strong>. This is the path it takes through the code.</p>
+  <svg viewBox="0 0 880 330" role="img" aria-labelledby="dt dd">
+    <title id="dt">How one question travels through Nion</title>
+    <desc id="dd">Your voice goes to Chrome's speech recognition, then to the wake phrase check, then the conversation decision, then the ask function in the controller. That sends the question to the server, which asks Claude using the rules in the prompt. The reply comes back, is spoken aloud, and is saved for History in the browser.</desc>
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor" style="color:var(--muted)"/>
+      </marker>
+    </defs>
+    <rect class="box" x="10" y="20" width="150" height="62" rx="10"/><text class="t" x="85" y="46" text-anchor="middle">You speak</text><text class="small" x="85" y="64" text-anchor="middle">speech-in.js hears it</text>
+    <rect class="hot" x="190" y="20" width="150" height="62" rx="10"/><text class="t" x="265" y="46" text-anchor="middle">Wake phrase?</text><text class="small" x="265" y="64" text-anchor="middle">wake.js parseUtterance</text>
+    <rect class="box" x="370" y="20" width="150" height="62" rx="10"/><text class="t" x="445" y="46" text-anchor="middle">What to do?</text><text class="small" x="445" y="64" text-anchor="middle">conversation.js decide</text>
+    <rect class="hot" x="550" y="20" width="150" height="62" rx="10"/><text class="t" x="625" y="46" text-anchor="middle">Ask</text><text class="small" x="625" y="64" text-anchor="middle">app.js ask</text>
+    <path class="arrow" d="M160 51 H188" marker-end="url(#ah)"/><path class="arrow" d="M340 51 H368" marker-end="url(#ah)"/><path class="arrow" d="M520 51 H548" marker-end="url(#ah)"/>
+
+    <rect class="box" x="550" y="130" width="150" height="62" rx="10"/><text class="t" x="625" y="156" text-anchor="middle">Server</text><text class="small" x="625" y="174" text-anchor="middle">server/index.js /api/chat</text>
+    <rect class="hot" x="730" y="130" width="140" height="62" rx="10"/><text class="t" x="800" y="156" text-anchor="middle">Claude</text><text class="small" x="800" y="174" text-anchor="middle">brain.js + prompt.js rules</text>
+    <path class="arrow" d="M625 82 V128" marker-end="url(#ah)"/><path class="arrow" d="M700 161 H728" marker-end="url(#ah)"/>
+
+    <rect class="box" x="370" y="240" width="150" height="62" rx="10"/><text class="t" x="445" y="266" text-anchor="middle">Speak the reply</text><text class="small" x="445" y="284" text-anchor="middle">speech-out.js</text>
+    <rect class="store" x="550" y="240" width="150" height="62" rx="10"/><text class="t" x="625" y="266" text-anchor="middle">Save for History</text><text class="small" x="625" y="284" text-anchor="middle">storage.js (your browser)</text>
+    <rect class="box" x="190" y="240" width="150" height="62" rx="10"/><text class="t" x="265" y="266" text-anchor="middle">Icon: speaking</text><text class="small" x="265" y="284" text-anchor="middle">ui.js + styles.css</text>
+    <path class="arrow" d="M800 192 V215 H445 V238" marker-end="url(#ah)"/>
+    <path class="arrow" d="M625 215 V238" marker-end="url(#ah)"/>
+    <path class="arrow" d="M370 271 H342" marker-end="url(#ah)"/>
+    <text class="small" x="640" y="212">the reply comes back</text>
+  </svg>
+  <p class="note">Everything you saw on screen comes from these steps: the icon changes at each state, and History shows what was saved.</p>
+</section>
+
+<section>
+  <h2>A route through the code</h2>
+  <p class="note">A reference route. Search for the names in quotes, since line numbers drift.</p>
+  <details open>
+    <summary>Stop 1 · <code>public/js/wake.js</code> — "parseUtterance"</summary>
+    <div>Recognises "Hey Nion". Chrome often writes the name as "Indian", "anyone" or "any on", so <code>MISHEARD_WAKE</code> accepts those, but only at the start of a sentence and only when a request word follows. That keeps "Indian food near me" from waking Nion. It also holds the spoken commands (<code>START_CONVERSATION</code>, <code>END_CONVERSATION</code>).</div>
+  </details>
+  <details open>
+    <summary>Stop 2 · <code>public/js/app.js</code> — "ask"</summary>
+    <div>The controller. <code>ask</code> sets the icon to thinking, adds your question to the conversation, and sends it to <code>/api/chat</code>. It has a 25 second give-up timer (<code>ASK_TIMEOUT_MS</code>), a "one moment" timer (<code>FILLER_AFTER_MS</code>), the spoken failure message (<code>TROUBLE</code>), and the call that saves the answer for History (<code>recordExchange</code>). <code>decide</code>, in <code>conversation.js</code>, chooses what to do with each thing heard; this file carries it out.</div>
+  </details>
+  <details open>
+    <summary>Stop 3 · <code>server/prompt.js</code> — "RULES"</summary>
+    <div>Nion's personality, in plain English: under about 60 words, at most five items, name sources aloud, say plainly when nothing is found, be honest about what it can't do yet. Most "Nion should act differently" changes are a sentence here. The Claude call itself is <code>askNion</code> in <code>server/brain.js</code>; web search helpers are in <code>server/search.js</code>.</div>
+  </details>
+</section>
+
+<section>
+  <h2>To change this, start here</h2>
+  <table>
+    <tr><th>You want to change…</th><th>Start in</th><th>Then check</th></tr>
+    <tr><td>How Nion sounds or behaves (shorter, friendlier, a new rule)</td><td><code>server/prompt.js</code> RULES</td><td><code>tests/prompt.test.js</code>, and <code>npm run check:replies</code> (costs credit)</td></tr>
+    <tr><td>Nion's goodbye (a change you made: "Great, talk soon. Take care")</td><td><code>app.js</code> "endConversation"</td><td><code>tests/app.test.js</code> now checks everything Nion said, not only its last sentence</td></tr>
+    <tr><td>How long a follow-up window stays open (15 seconds)</td><td><code>app.js</code> FOLLOW_UP_MS</td><td><code>tests/app.test.js</code> uses 15000 in several places</td></tr>
+    <tr><td>The "one moment" phrases</td><td><code>app.js</code> FILLERS</td><td>the FILLER pattern in <code>tests/app.test.js</code></td></tr>
+    <tr><td>A way Chrome mishears "Hey Nion", or a voice command</td><td><code>wake.js</code> NAME, MISHEARD_WAKE, END_CONVERSATION</td><td><code>tests/conversation.test.js</code>, <code>tests/echo.test.js</code></td></tr>
+    <tr><td>What History saves</td><td><code>public/js/storage.js</code> "recordExchange"</td><td><code>tests/storage.test.js</code></td></tr>
+    <tr><td>The look</td><td><code>public/css/styles.css</code>, the variables under <code>:root</code></td><td>reload the page</td></tr>
+    <tr><td>Which Claude model</td><td><code>NION_MODEL</code> in <code>.env</code></td><td><code>npm run check:speed</code> (costs credit)</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>A practice to reuse</h2>
+  <div class="practice">
+    <p><strong>When something breaks, give the agent evidence, then turn the fix into a test.</strong></p>
+    <p>In this project the three biggest fixes each started with evidence and not a description. Opening the page with <code>?debug</code> showed Chrome writing "Hey Nion" as "Indian", which led to <code>MISHEARD_WAKE</code> in <code>wake.js</code> and a test in <code>tests/conversation.test.js</code>. The same log showed Nion hearing its own voice ("I can answer question"), which led to <code>public/js/echo.js</code> and <code>tests/echo.test.js</code>. A server log line ("credit balance is too low") explained why every request failed, which led to <code>server/failure.js</code>.</p>
+    <p>The same idea works the other way, too. When you edited the goodbye, a test failed. The log said exactly what it expected and what it got, and showing that was enough to see the test had been too picky about Nion's <em>last sentence</em>. A failing test is evidence about either the code or the test, and the output tells you which.</p>
+  </div>
+  <p class="note" style="margin-top:10px">On another project: before asking an agent to fix something, collect what actually happened (a log, an error, a failing test's output) and paste that in. When it's fixed, ask for a test that would have caught it.</p>
+</section>
+
+<section>
+  <h2>Run it again</h2>
+  <pre>npm install
+cp .env.example .env     # put your own Claude API key in .env
+npm start                # then open http://localhost:3000 in Chrome
+npm test                 # free: 100+ tests, no key needed
+?debug                   # add to the address to see what Nion hears and decides</pre>
+  <p class="note">Paid checks, which spend your API credit: <code>npm run check:replies</code> and <code>npm run check:speed</code>. The full instructions are in <code>README.md</code>.</p>
+</section>
+
+<footer>Snapshot of commit 77cd897. This file is in <code>devpost/app-map.html</code>; open it any time from the project folder. It needs no network and no script.</footer>
+</div>
+</body>
+</html>

@@ -112,15 +112,15 @@ Build mode: learn
 
 ## Code Tour and App Map
 
-- [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap
-- [ ] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate
-- [ ] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
+- [x] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap
+- [x] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate
+- [x] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
 
-Activity and evidence: not yet done
-Route and stops: not yet done
-Edit outcome: not yet done
-Reflection: not yet done
-Activity mode: not yet done
+Activity and evidence: Guided route through one real action ("Hey Neon, what's the time in Denver?"), connected to the practice of giving the agent evidence (the `?debug` log and test output) and turning fixes into tests. The learner made a real edit and ran the tests; the edit exposed a brittle test (it checked only Nion's last spoken sentence), which was fixed in commit 77cd897.
+Route and stops: `public/js/wake.js` (parseUtterance, MISHEARD_WAKE); `public/js/app.js` (ask, with its timers, spoken failure and History saving); `server/prompt.js` (RULES). Completed by the learner, with the optional edit.
+Edit outcome: Tried and kept. The goodbye in `endConversation` (`public/js/app.js`) became "Great, talk soon. Take care". One test failed because it only checked the last spoken sentence; the test now checks everything Nion said, and all 112 tests pass.
+Reflection: Offered once (what to do differently next time with an agent). Any personal answer belongs only in the ignored learner profile.
+Activity mode: live app and editor.
 
 ## Revisions
 - Conversation mode (name, start and end by voice) moved ahead of the glass look — the first hands-on try of slice 1 showed that repeating "Hey Nion" on every question was the biggest friction, and the conversation feel is the kernel.
