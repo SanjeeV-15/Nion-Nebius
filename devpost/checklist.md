@@ -102,12 +102,12 @@ Build mode: learn
 ## Hands-on Checkpoints
 
 - [x] Early usable behavior explored — after slice 2 (name and voice-controlled conversations)
-- [ ] Final kick-the-tires exploration and feedback completed
+- [x] Final kick-the-tires exploration and feedback completed
 
 ## Final Review
 
-- [ ] Nion describes what it can and can't do accurately: no memory across conversations yet, History keeps transcripts it can't read, no reminders or to-do changes, and drafts are short and not saved or sent. (From the learner's exploring: asked to continue tomorrow, Nion said it didn't know whether the conversation was saved; asked for an email draft, it read about 90 words aloud.)
-- [ ] The learner's product ideas are recorded as Later notes in `prd.md`: memory across conversations, to-do and notes integration, email drafts saved for review, think-out-loud summaries, and a daily habit loop.
+- [x] Nion describes what it can and can't do accurately: no memory across conversations yet, History keeps transcripts it can't read, no reminders or to-do changes, and drafts are short and not saved or sent. (From the learner's exploring: asked to continue tomorrow, Nion said it didn't know whether the conversation was saved; asked for an email draft, it read about 90 words aloud.)
+- [x] The learner's product ideas are recorded as Later notes in `prd.md`: memory across conversations, to-do and notes integration, email drafts saved for review, think-out-loud summaries, and a daily habit loop.
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship
 
 ## Code Tour and App Map
@@ -135,4 +135,5 @@ Activity mode: not yet done
 - Replies are now limited to about 60 words: a real location test produced a 38 second spoken answer, and measuring showed local and news answers ran 60 to 120 words (25 to 45 seconds). Recorded in `prd.md` and `spec.md`.
 - "End the conversation, thank you" (heard as "and the conversation thank you") now ends the conversation.
 - Speed check (slice 9) measured Sonnet 5.5 as fast as or faster than Haiku 5.5 on five sample questions (10.2s vs 13.8s added up), so the model stays Sonnet 5.5. Failures are spoken aloud with a 25 second time limit. The README is finished for a fresh copy of the project.
+- Found during the final review: the learner's Claude API credit ran out (partly from the live checks run while building), and every request then failed with the same "trouble reaching my sources" message. The page now explains the reason on screen (used-up credit, rejected key, busy service) while Nion still says only the short message out loud. The paid checks (`npm run check:replies`, `npm run check:speed`) will not be run again without telling the learner first.
 
