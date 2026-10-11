@@ -17,7 +17,7 @@ import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
-import { getName, setName, clearName } from "./storage.js";
+import { getName, setName, clearName, recordExchange } from "./storage.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
 
@@ -85,6 +85,7 @@ function nextFiller() {
   return FILLERS[i];
 }
 let messages = []; // the conversation so far, sent to Claude each time
+let conversationId = null; // which saved conversation (for History) the next answer belongs to
 let nameTries = 0;
 
 // Where the person is, once we know. It is remembered until the page is closed,
@@ -180,7 +181,10 @@ function closeFollowUp() {
   clearTimeout(followUpTimer);
   if (!session.followUp) return;
   session.followUp = false;
-  if (!session.active) messages = []; // that conversation is over
+  if (!session.active) {
+    messages = []; // that conversation is over
+    conversationId = null;
+  }
   trace("follow-up window", "closed");
   if (state === "waiting") setState("waiting");
 }
@@ -391,6 +395,7 @@ async function startConversation() {
   refreshConvoButton();
   session.awaiting = null;
   messages = [];
+  conversationId = null;
   const name = getName();
   await say(name ? `Hey ${name}, I'm listening. Go ahead.` : "I'm listening. Go ahead.");
 }
@@ -403,6 +408,7 @@ async function endConversation() {
   refreshConvoButton();
   session.awaiting = null;
   messages = [];
+  conversationId = null;
   await say("Okay, talk soon.");
 }
 
@@ -432,7 +438,10 @@ async function ask(question, oneShot, gps) {
 
   // A question outside any conversation starts a new one (and gets a greeting).
   // Otherwise Claude gets everything said so far, so follow-ups make sense.
-  if (oneShot) messages = [];
+  if (oneShot) {
+    messages = [];
+    conversationId = null;
+  }
   const thread = messages;
   thread.push({ role: "user", content: question });
 
@@ -485,6 +494,8 @@ async function ask(question, oneShot, gps) {
     const { reply } = data;
     if (data.place) known.place = data.place; // worked out from GPS: remember it
     thread.push({ role: "assistant", content: reply });
+    // Save it for the History screen (only questions that got an answer).
+    conversationId = recordExchange(conversationId, question, reply, data.sources);
     const finished = await say(reply);
     // After an answer, leave the follow-up window open for a moment.
     if (finished && !session.active) openFollowUp();

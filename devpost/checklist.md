@@ -79,7 +79,7 @@ Build mode: learn
   Learner check: Block location, ask for places to eat around you, hear Nion ask, say your city, and hear up to five places with price and cuisine and a question. Then allow location and ask again.
   Commit: `Add location handling with spoken fallback`
 
-- [ ] **8. History: past conversations as transcripts you can copy**
+- [x] **8. History: past conversations as transcripts you can copy**
   Becomes usable: Every conversation is saved on the device. A History screen lists them, and opening one shows the transcript with a Copy button.
   Why now: It is the least important piece for proving the idea, so it comes last among the features and is the first to drop if time runs short.
   PRD ref: `prd.md > History and transcripts`, `prd.md > Screens and Layout`

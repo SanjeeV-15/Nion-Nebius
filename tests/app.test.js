@@ -479,3 +479,43 @@ test("after two answers that aren't a place, Nion gives up on the location", asy
   assert.match(saidSoFar(), /skip the location/);
   assert.equal(fetches.length, 1, "the waiting question was dropped");
 });
+
+const saved = () => JSON.parse(storage.get("nion.conversations") ?? "[]");
+
+test("answered questions are saved for History; follow-ups join the same conversation", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.equal(saved().length, 0);
+
+  await hear("hey nion what is the time in Denver");
+  assert.equal(saved().length, 0, "nothing is saved until the question is answered");
+  fetches[0].respond({ reply: "It's one in Denver.", sources: [{ title: "Time.is", url: "https://time.is" }] });
+  await tick();
+  await finishSpeaking();
+  assert.equal(saved().length, 1);
+  assert.deepEqual(saved()[0].turns.map((t) => t.text), ["what is the time in Denver", "It's one in Denver."]);
+  assert.equal(saved()[0].turns[1].sources[0].title, "Time.is");
+
+  // A follow-up in the window is part of the same conversation.
+  await hear("and in Mumbai");
+  fetches[1].reply("It's midnight.");
+  await tick();
+  await finishSpeaking();
+  assert.equal(saved().length, 1);
+  assert.equal(saved()[0].turns.length, 4);
+
+  // Once the window has closed, a new question starts a new conversation.
+  firePending(15000);
+  await tick();
+  await hear("hey nion what is the date");
+  fetches[2].reply("It's Sunday.");
+  await tick();
+  assert.equal(saved().length, 2);
+});
+
+test("a question that was interrupted before it was answered is not saved", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  await hear("wait actually", { final: false });
+  assert.equal(fetches[0].aborted, true);
+  assert.equal(saved().length, 0);
+});
