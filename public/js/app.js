@@ -1,38 +1,96 @@
-// The conversation controller: the one place that decides what Nion is doing.
+// The conversation controller: carries out what Nion decides to do.
 //
-//   waiting   -> listening for "Hey Nion"
-//   listening -> heard "Hey Nion" on its own, now waiting for the question
-//   thinking  -> asking Claude (we stop listening so Nion never hears itself)
-//   speaking  -> reading the answer aloud
+// conversation.js decides ("ask this question", "end the conversation"...).
+// This file does the doing: listening, asking the server, speaking, and keeping
+// the screen's status line up to date.
 //
-// After speaking, Nion goes back to waiting.
+//   waiting   -> listening for "Hey Nion" (or, in a conversation, for anything you say)
+//   listening -> waiting for your question or your name
+//   thinking  -> asking Claude
+//   speaking  -> reading something aloud
+//
+// Nion keeps listening in every state. If you start talking while it is thinking
+// or speaking, it stops at once and listens to you, like a person would.
 
-import { parseUtterance } from "./wake.js";
+import { decide } from "./conversation.js";
+import { isEcho, isInterruption, stripLeadingEcho } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
-import { speak, speechOutSupported } from "./speech-out.js";
+import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
+import { getName, setName, clearName } from "./storage.js";
 
 const el = {
   start: document.getElementById("start"),
+  convo: document.getElementById("convo"),
   status: document.getElementById("status"),
   heard: document.getElementById("heard"),
   problem: document.getElementById("problem"),
+  debug: document.getElementById("debug"),
+  copylog: document.getElementById("copylog"),
 };
 
-const STATUS_TEXT = {
-  off: "Tap the button to turn Nion on.",
-  waiting: "Waiting. Say “Hey Nion.”",
-  listening: "Listening…",
-  thinking: "Thinking…",
-  speaking: "Speaking…",
-};
+const params = new URLSearchParams(location.search);
 
-let state = "off";
-let waitingForQuestion = false; // true after a lone "Hey Nion"
+// Opening the page with ?reset forgets the saved name, to try first use again.
+if (params.has("reset")) clearName();
+
+// Opening the page with ?debug shows a log of what Nion hears and decides, which
+// helps when something doesn't work the way it should.
+const debugOn = params.has("debug");
+const traceLines = [];
+function trace(kind, detail = "") {
+  const t = new Date();
+  const pad = (n, w = 2) => String(n).padStart(w, "0");
+  const stamp = `${pad(t.getMinutes())}:${pad(t.getSeconds())}.${pad(t.getMilliseconds(), 3)}`;
+  const line = `${stamp} ${kind} ${detail}`.trim();
+  console.log("[nion]", line);
+  if (!debugOn) return;
+  traceLines.push(line);
+  if (traceLines.length > 150) traceLines.shift();
+  el.debug.hidden = false;
+  el.copylog.hidden = false;
+  el.debug.textContent = traceLines.join("\n");
+  el.debug.scrollTop = el.debug.scrollHeight;
+}
+el.copylog.addEventListener("click", () => navigator.clipboard?.writeText(traceLines.join("\n")));
+
+let state = "off"; // off | waiting | listening | thinking | speaking
+const session = {
+  active: false, // is a conversation running?
+  awaiting: null, // null | "name" | "question"
+};
+let messages = []; // the conversation so far, sent to Claude each time
+let nameTries = 0;
 let questionTimer = null;
 
+// Interrupting: every spoken line or question gets a "turn" number. If you
+// interrupt, the number moves on, and anything still finishing from the old turn
+// notices and quietly stops.
+let turn = 0;
+let abortAsk = null; // lets us cancel a question that is still waiting for Claude
+// What Nion said last, and until when its voice may still be coming back through
+// the microphone. Chrome reports words a moment late, so this keeps going for a
+// few seconds after Nion stops.
+const ECHO_TAIL_MS = 3500;
+const echo = { text: "", until: 0 };
+
+function statusText() {
+  switch (state) {
+    case "off": return "Tap the button to turn Nion on.";
+    case "waiting":
+      return session.active
+        ? "In a conversation. Just talk, or say “End the conversation.”"
+        : "Waiting. Say “Hey Nion.”";
+    case "listening":
+      return session.awaiting === "name" ? "Listening for your name…" : "Listening…";
+    case "thinking": return "Thinking…";
+    case "speaking": return "Speaking…";
+  }
+}
+
 function setState(next) {
+  if (next !== state) trace("state", `${state} -> ${next}`);
   state = next;
-  el.status.textContent = STATUS_TEXT[next];
+  el.status.textContent = statusText();
 }
 
 function showProblem(message) {
@@ -40,7 +98,12 @@ function showProblem(message) {
   el.problem.hidden = !message;
 }
 
-const listener = createListener({ onText: handleHeard, onProblem: handleProblem });
+const listener = createListener({
+  onText: handleHeard,
+  onInterim: handleInterim,
+  onProblem: handleProblem,
+  onEvent: (name) => trace("mic", name),
+});
 
 function handleProblem(reason) {
   if (reason === "mic-blocked") {
@@ -53,39 +116,152 @@ function handleProblem(reason) {
   }
 }
 
+// Say something. Listening stays on, so you can interrupt.
+async function say(text, { then = "waiting" } = {}) {
+  const mine = ++turn;
+  echo.text = text;
+  echo.until = Infinity; // its voice is coming through the speakers right now
+  setState("speaking");
+  await speak(text);
+  if (mine !== turn) return; // you interrupted: the new turn has taken over
+  echo.until = Date.now() + ECHO_TAIL_MS;
+  setState(then);
+}
+
+// Stop whatever Nion is doing, because you started talking.
+function interrupt() {
+  trace("interrupt", `was ${state}`);
+  turn += 1;
+  stopSpeaking();
+  abortAsk?.abort();
+  echo.until = Date.now() + ECHO_TAIL_MS; // what we cut off may still arrive
+  // Outside a conversation, what you say next is treated as your question.
+  if (!session.active && session.awaiting === null) armQuestionWait();
+  setState("listening");
+}
+
+function armQuestionWait() {
+  session.awaiting = "question";
+  clearTimeout(questionTimer);
+  questionTimer = setTimeout(() => {
+    if (session.awaiting === "question") session.awaiting = null;
+    if (state === "listening") setState("waiting");
+  }, 8000);
+}
+
+// Words arrive while someone is still speaking. If Nion is busy and it isn't
+// just its own voice, stop at once.
+let lastInterim = "";
+function handleInterim(text) {
+  // Show what Chrome is hearing right now, before it has finished the phrase.
+  el.heard.textContent = `Hearing: “${text}”`;
+  const busy = state === "speaking" || state === "thinking";
+  const interrupting = busy && isInterruption(text, echo.text);
+  if (text !== lastInterim) {
+    lastInterim = text;
+    trace("interim", `“${text}”${busy ? (interrupting ? " (someone is talking)" : " (Nion's own voice, ignored)") : ""}`);
+  }
+  if (interrupting) interrupt();
+}
+
 function handleHeard(text) {
-  if (!text) return;
+  if (!text || state === "off") return;
   el.heard.textContent = `Heard: “${text}”`;
+  lastInterim = "";
+  trace("final", `“${text}” (state ${state}, conversation ${session.active ? "on" : "off"}, awaiting ${session.awaiting ?? "nothing"})`);
 
-  // Ignore anything heard while Nion is busy.
-  if (state !== "waiting" && state !== "listening") return;
-
-  // After a lone "Hey Nion", whatever comes next is the question.
-  if (waitingForQuestion) {
-    waitingForQuestion = false;
-    clearTimeout(questionTimer);
-    ask(text);
-    return;
+  // Nion's own voice, coming back through the microphone, is not you talking.
+  if (Date.now() < echo.until) {
+    if (isEcho(text, echo.text)) {
+      trace("ignored", "Nion's own voice");
+      return;
+    }
+    const trimmed = stripLeadingEcho(text, echo.text);
+    if (trimmed !== text) {
+      trace("trimmed", `“${trimmed}”`);
+      text = trimmed;
+    }
   }
 
-  const result = parseUtterance(text);
-  if (!result.woke) return; // not for Nion: ignore it
+  if (state === "speaking" || state === "thinking") interrupt();
 
-  if (result.question) {
-    ask(result.question);
-  } else {
-    waitingForQuestion = true;
-    setState("listening");
-    // If nothing follows, give up and go back to waiting.
-    questionTimer = setTimeout(() => {
-      waitingForQuestion = false;
-      setState("waiting");
-    }, 8000);
+  const action = decide(session, text);
+  trace("decided", JSON.stringify(action));
+
+  switch (action.type) {
+    case "ignore":
+      return;
+
+    case "setName":
+      return rememberName(action.name);
+
+    case "nameRetry":
+      return retryName();
+
+    case "awaitQuestion":
+      armQuestionWait();
+      setState("listening");
+      return;
+
+    case "start":
+      return startConversation();
+
+    case "end":
+      return endConversation();
+
+    case "ask":
+      session.awaiting = null;
+      clearTimeout(questionTimer);
+      return ask(action.question, action.oneShot);
   }
 }
 
+async function rememberName(name) {
+  const first = session.awaiting === "name";
+  setName(name);
+  session.awaiting = null;
+  nameTries = 0;
+  await say(
+    first
+      ? `Nice to meet you, ${name}. Just say “Hey Nion” whenever you want me.`
+      : `Okay, I'll call you ${name}.`
+  );
+}
+
+async function retryName() {
+  nameTries += 1;
+  if (nameTries >= 2) {
+    session.awaiting = null;
+    nameTries = 0;
+    return say("No problem, we can do names later. Just say “Hey Nion” whenever you want me.");
+  }
+  await say("Sorry, I didn't catch your name. What should I call you?", { then: "listening" });
+}
+
+// The backup button: starts or ends a conversation without needing the wake phrase.
+function refreshConvoButton() {
+  el.convo.textContent = session.active ? "End conversation" : "Start conversation";
+}
+
+async function startConversation() {
+  session.active = true;
+  refreshConvoButton();
+  session.awaiting = null;
+  messages = [];
+  const name = getName();
+  await say(name ? `Hey ${name}, I'm listening. Go ahead.` : "I'm listening. Go ahead.");
+}
+
+async function endConversation() {
+  session.active = false;
+  refreshConvoButton();
+  session.awaiting = null;
+  messages = [];
+  await say("Okay, talk soon.");
+}
+
 // Details about the person's moment, so Nion can answer "what is today's date?".
-function currentContext() {
+function currentContext(isNewConversation) {
   const now = new Date();
   return {
     nowISO: now.toISOString(),
@@ -98,47 +274,76 @@ function currentContext() {
       hour: "numeric",
       minute: "2-digit",
     }),
+    userName: getName() || undefined,
+    isNewConversation,
   };
 }
 
-async function ask(question) {
+async function ask(question, oneShot) {
+  const mine = ++turn;
   setState("thinking");
-  listener.stop(); // don't listen while thinking or speaking
   showProblem("");
 
+  // A one-shot question is its own little conversation. In a running
+  // conversation, Claude gets everything said so far.
+  const thread = oneShot ? [] : messages;
+  thread.push({ role: "user", content: question });
+
+  abortAsk = new AbortController();
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: abortAsk.signal,
       body: JSON.stringify({
-        messages: [{ role: "user", content: question }],
-        context: currentContext(),
+        // Keep only the most recent turns so the request stays small.
+        messages: thread.slice(-20),
+        // In a started conversation Nion has already greeted you, so only a
+        // one-shot question counts as "new" (and gets a greeting by name).
+        context: currentContext(oneShot),
       }),
     });
     if (!response.ok) throw new Error(`Server said ${response.status}`);
     const { reply } = await response.json();
 
-    setState("speaking");
-    await speak(reply);
+    if (mine !== turn) {
+      thread.pop(); // you interrupted while Claude was answering: drop that question
+      return;
+    }
+    thread.push({ role: "assistant", content: reply });
+    await say(reply);
   } catch (error) {
+    thread.pop(); // the question got no answer, so take it back out
+    if (mine !== turn) return; // that was us cancelling because you interrupted
     console.error(error);
     showProblem("Nion couldn't get an answer. Check the terminal where npm start is running.");
+    setState("waiting");
   }
-
-  setState("waiting");
-  // A short pause so the end of Nion's own voice isn't picked up as a new question.
-  setTimeout(() => listener.start(), 300);
 }
 
-el.start.addEventListener("click", () => {
+el.convo.addEventListener("click", () => {
+  if (state === "off") return;
+  if (state === "speaking" || state === "thinking") interrupt();
+  return session.active ? endConversation() : startConversation();
+});
+
+el.start.addEventListener("click", async () => {
   if (!speechInSupported || !speechOutSupported) {
     showProblem("This browser can't do speech. Please open Nion in Chrome.");
     return;
   }
   el.start.hidden = true;
+  el.convo.hidden = false;
   showProblem("");
-  setState("waiting");
   listener.start();
+
+  // First use: Nion asks your name once.
+  if (!getName()) {
+    session.awaiting = "name";
+    await say("Hi, I'm Nion. What should I call you?", { then: "listening" });
+  } else {
+    setState("waiting");
+  }
 });
 
 if (!speechInSupported || !speechOutSupported) {

@@ -1,8 +1,8 @@
 // Nion's instructions. This text is sent to Claude with every request and is what
 // makes Nion sound like a person on a phone call instead of a search engine.
 //
-// For now it holds the basic spoken-style rules. Later slices add more rules
-// (the five-item limit, news sources, location, and so on).
+// For now it holds the basic spoken-style rules and the name greeting. Later
+// slices add more rules (the five-item limit, news sources, location, and so on).
 
 const RULES = `You are Nion, a voice companion. The person is talking to you out loud, often while walking or travelling with earphones in and their phone in a pocket. Everything you write is read aloud by a speech voice, and the person is not looking at a screen.
 
@@ -14,13 +14,28 @@ How to answer:
 
 /**
  * Builds the full instructions for one request.
- * `context` comes from the person's browser: the current date and time on their
- * device, so Nion can answer questions like "what is today's date?".
+ * `context` comes from the person's browser:
+ *   localDateTime, timeZone, nowISO: the current date and time on their device
+ *   userName: what to call them (may be missing)
+ *   isNewConversation: true if this is the first reply of a new conversation
  */
 export function buildSystemPrompt(context = {}) {
   const lines = [RULES, ""];
 
-  const { localDateTime, timeZone, nowISO } = context;
+  const { localDateTime, timeZone, nowISO, userName, isNewConversation } = context;
+
+  if (userName) {
+    lines.push(`The person's name is ${userName}.`);
+    if (isNewConversation) {
+      lines.push(
+        `This is the first reply of a new conversation, so start with a quick friendly greeting using their name, like "Hey ${userName}," and then answer.`
+      );
+    } else {
+      lines.push("You've already greeted them in this conversation, so don't say their name again unless it feels natural.");
+    }
+    lines.push("");
+  }
+
   if (localDateTime || nowISO) {
     lines.push("About the person's moment right now:");
     if (localDateTime) lines.push(`- Their local date and time: ${localDateTime}`);

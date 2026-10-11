@@ -30,6 +30,30 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
+// The context comes from the browser, so treat it as untrusted: keep only the
+// fields we expect, cap their length, and allow only letters in the name (so a
+// made-up "name" can't smuggle instructions into Nion's prompt).
+function cleanContext(raw = {}) {
+  const text = (value, max) => (typeof value === "string" ? value.slice(0, max) : undefined);
+  // A name is at most three short words made of letters.
+  const name = typeof raw.userName === "string"
+    ? raw.userName
+        .replace(/[^\p{L}\p{M}' -]/gu, "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(" ")
+        .slice(0, 30)
+    : "";
+  return {
+    nowISO: text(raw.nowISO, 40),
+    timeZone: text(raw.timeZone, 60),
+    localDateTime: text(raw.localDateTime, 80),
+    userName: name || undefined,
+    isNewConversation: raw.isNewConversation === true,
+  };
+}
+
 app.post("/api/chat", async (req, res) => {
   const { messages, context } = req.body ?? {};
 
@@ -52,7 +76,7 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
-    const { reply } = await askNion({ messages, context });
+    const { reply } = await askNion({ messages, context: cleanContext(context) });
     res.json({ reply });
   } catch (error) {
     console.error("Claude request failed:", error?.status ?? "", error?.message ?? error);

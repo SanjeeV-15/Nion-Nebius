@@ -30,7 +30,7 @@ Example: first use, then "Hey Nion, what is today's date?"
 4. **You say "Hey Nion, what is today's date?"** The page hears the text, sees the wake phrase, and keeps "what is today's date?". The icon changes to listening, then thinking. *(`app.js`, `ui.js`)*
 5. **Ask the server.** The page sends the conversation so far, your name, the device's current date, time and time zone, and your location if it has one, to `POST /api/chat`. *(`public/js/app.js`)*
 6. **Ask Claude.** The server builds the prompt (Nion's spoken-style rules plus your details) and calls Claude, allowing web search. It returns the short reply and any sources. *(`server/index.js`, `server/brain.js`, `server/prompt.js`)*
-7. **Speak.** The page reads the reply aloud and the icon shows speaking. While speaking, listening is paused. When Nion finishes, it listens again. *(`speech-out.js`)*
+7. **Speak.** The page reads the reply aloud and the icon shows speaking. Listening stays on while it speaks: if you start talking, Nion stops at once (unless what it hears is just its own voice) and listens to you. *(`speech-out.js`)*
 8. **Save.** The exchange is added to the current conversation in the browser's storage. *(`storage.js`)*
 9. **Later.** Open the History screen to see the conversation as a transcript you can copy. *(`history.html`, `history.js`)*
 
@@ -83,17 +83,17 @@ Carried from `prd.md > Look and Feel`. Dark, monotone glass.
 ## Components
 
 ### Main screen
-Shows the wordmark, the state icon, a one-line status caption, and a link to History. The first tap on the icon turns Nion on. After that, no taps are needed.
+Shows the wordmark, the state icon, a one-line status caption, a backup Start conversation / End conversation button, and a link to History. The first tap on the icon turns Nion on. After that, no taps are needed.
 PRD ref: `prd.md > Screens and Layout`, `prd.md > Voice conversation`.
 Files: `public/index.html`, `public/css/styles.css`, `public/js/ui.js`, `public/js/app.js`.
 
 ### State machine (the conversation controller)
-Decides what Nion is doing: waiting, listening, thinking, or speaking, and whether a conversation is active. It is the single place that says "now stop listening, now speak, now listen again."
+Decides what Nion is doing: waiting, listening, thinking, or speaking, and whether a conversation is active. It is the single place that says "now think, now speak, now stop because you were interrupted." The decisions about what each thing heard means live in `public/js/conversation.js`, which `app.js` carries out.
 PRD ref: `prd.md > Voice conversation`, `prd.md > States and Boundaries`.
 File: `public/js/app.js`.
 
 ### Hearing
-Wraps the browser's speech recognition. Listens continuously in English. When the browser stops listening on its own (it does this regularly), it restarts. Pauses while Nion speaks, so Nion doesn't hear itself.
+Wraps the browser's speech recognition. Listens continuously in English. When the browser stops listening on its own (it does this regularly), it restarts. Keeps listening while Nion thinks or speaks, and reports half-heard words quickly so Nion can stop the moment you start talking. `public/js/echo.js` recognises Nion's own voice coming back through the microphone so it doesn't interrupt itself.
 PRD ref: `prd.md > Voice conversation`.
 File: `public/js/speech-in.js`.
 
@@ -190,6 +190,8 @@ voice-companion/
 - **The wake phrase isn't recognized** (the browser writes a different word) → the matcher accepts several spellings. If it still fails in a live demo, tapping the icon starts a turn as a backup. This is a fallback, not the main path.
 - **Claude or web search is slow or fails** → the icon stays in "thinking," and after a time limit Nion says "I'm having trouble reaching my sources. Please try again." Nothing is saved for that turn.
 - **Location is denied or unavailable** → Nion asks by voice: allow location, or tell me where you are (as in the PRD). A spoken place is used instead.
+- **Laptop speakers echo into the microphone** → Nion filters out its own words (`echo.js`), but this is imperfect. Interrupting works well with earphones and only partly on speakers, so the demo and README say to use earphones. Learner confirmed this in testing.
+- **Chrome writes "Hey Nion" as "Indian" or "anyone"** → common mishearings are accepted when followed by a request word, and a **Start conversation / End conversation** button is a backup.
 - **Unsupported browser** (Safari, Firefox) → a plain screen says to open Nion in Chrome.
 - **Missing API key** → the server stops at startup with a clear message naming `.env`.
 
@@ -198,13 +200,15 @@ voice-companion/
 - **Browser speech** instead of a paid cloud voice service — keeps one outside service, no extra keys. The voices sound less natural and phone browsers are less reliable. The fuller version would swap in a cloud speech service behind `speech-in.js` and `speech-out.js`.
 - **One tap to start** instead of fully hands-free from launch — browsers refuse to open the microphone or speak until a tap. After the tap everything is by voice. This is a small change from `prd.md > The Core Journey`, which doesn't mention the tap.
 - **The wake phrase is text matching** on what the browser heard, instead of a dedicated wake-word engine. It works while the page is open; it can't work with the screen off.
-- **No interrupting mid-sentence.** Nion stops listening while it speaks, which also avoids the iPhone audio-quality bug and Nion hearing itself.
 - **Browser storage instead of a database** — history and name stay on the device. Fuller version: accounts and a database.
 - **No streaming of the reply.** Replies are short, so waiting for the whole answer is simpler. A fuller version would start speaking while the answer is still arriving.
 - **Chrome only** for the proof of concept.
 - **Local first, hosted later** — the laptop demo is the safe path; a hosted phone version is optional.
 
 ## Decisions and Open Issues
+
+### Changed during the build
+- **Interrupting is in, and conversation decisions are in their own file.** After the first hands-on try, the learner needed Nion to stop and listen when interrupted, so Nion keeps listening while it thinks and speaks. This replaces the earlier "stop listening while speaking" simplification. The tradeoffs: laptop speakers can feed Nion's voice back into the microphone (guarded by `echo.js`, and earphones avoid it entirely), and on an iPhone an open microphone can lower playback quality (a known browser issue), which makes the phone attempt a little more fragile.
 
 ### Learner choices
 - Web app, laptop first, phone as a stretch goal. The laptop version is the safe fallback and is built and recorded first. The phone version is also attempted: if it works well it becomes the headline demo; if not, the laptop recording is the submission. The phone attempt is time-boxed, and it is tested early. On an iPhone every browser (including Chrome) uses Apple's engine, which has weak speech support, so an Android phone with Chrome is the better bet.
@@ -227,4 +231,4 @@ voice-companion/
 - **How is location passed to web search?** The browser gives coordinates, search may want a city. If needed, a small lookup is added in the build.
 - **Where current information comes from** is settled: Claude's web search. Quality for places and directions will be judged in the build; if poor, the fallback is a narrower, clearly labeled demo set.
 - **Delete a conversation in History** — still Later (carried from `prd.md > Open Questions`).
-- **Interrupting mid-sentence and Nion's default voice** — can wait.
+- **Nion's default voice** — can wait. (Interrupting moved into the first version; see "Changed during the build" above.)

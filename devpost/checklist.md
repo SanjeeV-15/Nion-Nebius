@@ -19,15 +19,15 @@ Build mode: learn
   Learner check: Open `http://localhost:3000` in Chrome, tap once, allow the microphone, say "Hey Nion, what is today's date?" and confirm you hear the answer without touching the screen. Tell me what the "heard" line showed when you said "Nion."
   Commit: `Add voice loop: hear Hey Nion, ask Claude, speak the answer`
 
-- [ ] **2. Nion looks like Nion: a glass state icon that shows waiting, listening, thinking and speaking**
-  Becomes usable: The same voice loop, now with the monotone glass look and one medium icon that changes shape and motion for each of the four states.
-  Why now: From here on every behavior shows up on the real screen, and the look is shared by everything after it. It also gives you the first moment to judge how it feels.
-  PRD ref: `prd.md > Screens and Layout`, `prd.md > Look and Feel`, `prd.md > States and Boundaries`
-  Spec ref: `spec.md > Look and Feel`, `spec.md > Components > Main screen`, `spec.md > Components > State machine (the conversation controller)`
-  Build: Add the page layout (wordmark, medium glass icon, one-line status caption), the four icons and their motion (respecting "reduce motion"), the monotone palette, and wire the icon to the conversation controller so it follows listening, thinking and speaking.
-  Verify (mechanical): Tests still pass. Load the page in a browser, switch the icon through all four states from the page's script, and confirm each state changes the icon and its label. Take a screenshot to confirm the glass layout renders.
-  Learner check: Open the page and say "Hey Nion, what time is it in Denver?" Watch the icon change as it listens, thinks and speaks. Say whether it feels sleek and monotone, and whether you can tell the four states apart.
-  Commit: `Add monotone glass look and four-state icon`
+- [x] **2. Nion learns your name and keeps a conversation going by voice**
+  Becomes usable: On first use Nion asks your name and remembers it. "Hey Nion, let's start a conversation" lets you keep talking without the wake phrase until you say "End the conversation." Nion greets you by name once per conversation.
+  Why now: The "like a phone call" feeling depends on follow-ups without repeating the wake phrase, and it is the heart of the kernel. Moved up to second place after your first hands-on try, because saying "Hey Nion" every time was the biggest friction you felt.
+  PRD ref: `prd.md > Voice conversation`, `prd.md > A partner with a point of view`, `prd.md > States and Boundaries` (first use, what persists)
+  Spec ref: `spec.md > Components > State machine (the conversation controller)`, `spec.md > Components > Wake phrase and commands`, `spec.md > Components > Name and conversations (browser storage)`, `spec.md > Data Model`
+  Build: Add name storage and the first-use question, the start and end commands, conversation mode, sending the conversation so far to the server, and the "new conversation" flag so the greeting happens once.
+  Verify (mechanical): Tests pass for the start and end commands and the conversation state changes. A two-turn test request shows the name greeting in the first reply and not in the second.
+  Learner check: Clear Nion's saved name, open it, answer the name question, then start a conversation, ask two follow-up questions without the wake phrase, and end it. Confirm it stops answering after "End the conversation."
+  Commit: `Add first-use name and voice-controlled conversations`
 
 - [ ] **3. Phone check: open Nion on your phone through a temporary secure link**
   Becomes usable: A temporary secure web address that opens your laptop's Nion on your phone, so you find out early whether the phone version works. This is a time-boxed experiment with one honest attempt.
@@ -39,15 +39,15 @@ Build mode: learn
   Learner check: Open the link on your phone in Chrome, tap once, allow the microphone, say "Hey Nion, what is today's date?" and tell me exactly what happens (nothing heard, wrong words, or it works).
   Commit: `Add phone check instructions`
 
-- [ ] **4. Nion learns your name and keeps a conversation going by voice**
-  Becomes usable: On first use Nion asks your name and remembers it. "Hey Nion, let's start a conversation" lets you keep talking without the wake phrase until you say "End the conversation." Nion greets you by name once per conversation.
-  Why now: The "like a phone call" feeling depends on follow-ups without repeating the wake phrase, and it is the heart of the kernel.
-  PRD ref: `prd.md > Voice conversation`, `prd.md > A partner with a point of view`, `prd.md > States and Boundaries` (first use, what persists)
-  Spec ref: `spec.md > Components > State machine (the conversation controller)`, `spec.md > Components > Wake phrase and commands`, `spec.md > Components > Name and conversations (browser storage)`, `spec.md > Data Model`
-  Build: Add name storage and the first-use question, the start and end commands, conversation mode, sending the conversation so far to the server, and the "new conversation" flag so the greeting happens once.
-  Verify (mechanical): Tests pass for the start and end commands and the conversation state changes. A two-turn test request shows the name greeting in the first reply and not in the second.
-  Learner check: Clear Nion's saved name, open it, answer the name question, then start a conversation, ask two follow-up questions without the wake phrase, and end it. Confirm it stops answering after "End the conversation."
-  Commit: `Add first-use name and voice-controlled conversations`
+- [ ] **4. Nion looks like Nion: a glass state icon that shows waiting, listening, thinking and speaking**
+  Becomes usable: The same voice loop, now with the monotone glass look and one medium icon that changes shape and motion for each of the four states.
+  Why now: Conversation mode and the phone check are in place, so now the screen gets its real look. Everything after this slice (search, location, History) shows up in that look.
+  PRD ref: `prd.md > Screens and Layout`, `prd.md > Look and Feel`, `prd.md > States and Boundaries`
+  Spec ref: `spec.md > Look and Feel`, `spec.md > Components > Main screen`, `spec.md > Components > State machine (the conversation controller)`
+  Build: Add the page layout (wordmark, medium glass icon, one-line status caption), the four icons and their motion (respecting "reduce motion"), the monotone palette, and wire the icon to the conversation controller so it follows listening, thinking and speaking.
+  Verify (mechanical): Tests still pass. Load the page in a browser, switch the icon through all four states from the page's script, and confirm each state changes the icon and its label. Take a screenshot to confirm the glass layout renders.
+  Learner check: Open the page and say "Hey Nion, what time is it in Denver?" Watch the icon change as it listens, thinks and speaks. Say whether it feels sleek and monotone, and whether you can tell the four states apart.
+  Commit: `Add monotone glass look and four-state icon`
 
 - [ ] **5. Designed for ears: short spoken answers, five items at most, and it handles rambling**
   Becomes usable: Nion answers the way a person would on a call: short, no lists or links, at most five items before asking whether to continue, narrow or go deeper, one clarifying question for broad questions, a one-sentence "here's what I understood" after a long ramble, and an opinion plus a follow-up on decisions.
@@ -101,7 +101,7 @@ Build mode: learn
 
 ## Hands-on Checkpoints
 
-- [ ] Early usable behavior explored — after slice 2 (the voice loop with the Nion look)
+- [x] Early usable behavior explored — after slice 2 (name and voice-controlled conversations)
 - [ ] Final kick-the-tires exploration and feedback completed
 
 ## Final Review
@@ -121,4 +121,7 @@ Reflection: not yet done
 Activity mode: not yet done
 
 ## Revisions
-
+- Conversation mode (name, start and end by voice) moved ahead of the glass look — the first hands-on try of slice 1 showed that repeating "Hey Nion" on every question was the biggest friction, and the conversation feel is the kernel.
+- Conversation decisions (what to do with each thing Nion hears) live in a small testable `public/js/conversation.js` that `app.js` calls, instead of all inside `app.js` — an internal change that keeps the same behavior and makes it checkable with `npm test`.
+- Interrupting moved into the first version: Nion keeps listening while it thinks and speaks, and stops the moment the person talks (with a guard against hearing its own voice). The plan had said "no interrupting" and "stop listening while speaking". The learner's first hands-on try of slice 2 showed that Nion talking over them broke the phone-call feeling. Updated `prd.md` (Voice conversation, Product Decisions, Open Questions) and `spec.md` (Hearing, State machine, Simplified, Decisions).
+- The "end the conversation" command now tolerates mishearing and close variants ("goodbye", "I'm done", "and the conversation" when it is the whole phrase) because Chrome did not reliably write the phrase.

@@ -39,3 +39,17 @@ button {
 .problem {
   color: #f2b8b5;
 }
+
+/* Only shown when the page is opened with ?debug */
+.debug {
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 40vh;
+  overflow: auto;
+  background: #0c0d12;
+  color: #b9bccb;
+  padding: 10px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+}

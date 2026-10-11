@@ -27,6 +27,13 @@ Built for the Devpost *Build With AI: Basics* hackathon.
 4. Open http://localhost:3000 in Chrome, tap **Turn on Nion** once, and allow the
    microphone. Then say, "Hey Nion, what is today's date?"
 
+**Use earphones.** Nion keeps listening while it talks so you can interrupt it. With
+earphones that works well. On laptop speakers the microphone hears Nion's own voice,
+so interrupting is less reliable. Chrome sometimes writes "Hey Nion" as "Indian" or
+"anyone", so there is also a **Start conversation** button as a backup.
+
+Open http://localhost:3000/?debug to see a log of what Nion hears and decides.
+
 Run the tests with `npm test`.
 
 ## How it is built

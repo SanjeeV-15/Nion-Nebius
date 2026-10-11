@@ -28,6 +28,11 @@ function pickVoice() {
   return english.find((v) => v.lang === "en-US") ?? english[0] ?? null;
 }
 
+// How the voice should say "Nion". Speech voices guess at unusual words (left
+// alone, this voice said "Nayan"), so we give it a spelling that it says the way
+// we want: "Neon" is said "NEE-on", which is how the learner says the name.
+const SPOKEN_NAME = "Neon";
+
 // Chrome can cut off a long utterance partway through, so we read one sentence
 // at a time.
 function splitIntoSentences(text) {
@@ -42,7 +47,7 @@ export function speak(text) {
     speechSynthesis.cancel(); // stop anything still being said
 
     const voice = pickVoice();
-    const sentences = splitIntoSentences(text);
+    const sentences = splitIntoSentences(text.replace(/\bNion\b/g, SPOKEN_NAME));
     let remaining = sentences.length;
     if (remaining === 0) return resolve();
 

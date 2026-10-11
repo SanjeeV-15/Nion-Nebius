@@ -162,11 +162,11 @@
   </details>
   <details>
     <summary>Conversation controller <span class="tag t-file">app.js</span></summary>
-    <div>The single place that decides: waiting, listening, thinking, speaking, and whether a conversation is active. It stops listening while Nion speaks, and resumes after.<br><strong>PRD:</strong> <code>Voice conversation</code>, <code>States and Boundaries</code></div>
+    <div>The single place that decides: waiting, listening, thinking, speaking, and whether a conversation is active. It stops what Nion is doing the moment you start talking. What each thing heard means is decided in <code>conversation.js</code>.<br><strong>PRD:</strong> <code>Voice conversation</code>, <code>States and Boundaries</code></div>
   </details>
   <details>
     <summary>Hearing <span class="tag t-file">speech-in.js</span></summary>
-    <div>Wraps Chrome's speech recognition. Listens continuously in English and restarts itself when the browser stops. Paused while Nion speaks.<br><strong>PRD:</strong> <code>Voice conversation</code></div>
+    <div>Wraps Chrome's speech recognition. Listens continuously in English and restarts itself when the browser stops. Keeps listening while Nion thinks or speaks, so you can interrupt; <code>echo.js</code> recognises Nion's own voice so it doesn't interrupt itself.<br><strong>PRD:</strong> <code>Voice conversation</code></div>
   </details>
   <details>
     <summary>Wake phrase and commands <span class="tag t-file">wake.js · tests/wake.test.js</span></summary>
@@ -273,7 +273,6 @@
       <li>Browser speech instead of a paid voice service (one outside service only)</li>
       <li>One tap to start (browser rule)</li>
       <li>Wake phrase by text matching, not a wake-word engine</li>
-      <li>No interrupting mid-sentence</li>
       <li>Browser storage instead of a database</li>
       <li>No streaming of the reply</li>
       <li>Chrome only; laptop first</li>
@@ -313,7 +312,7 @@
     <div>The browser gives coordinates; search may want a city. If needed, a small lookup is added in the build.</div>
   </details>
   <details>
-    <summary><span class="tag t-later">Can wait</span> Delete in History, interrupting, Nion's default voice</summary>
+    <summary><span class="tag t-later">Can wait</span> Delete in History, Nion's default voice</summary>
     <div>All still Later.</div>
   </details>
 </section>
@@ -337,7 +336,7 @@
     { on: ["n-api", "n-brain", "n-claude"], title: "Ask Claude",
       text: "The server builds the prompt with Nion's spoken-style rules and calls Claude, with web search allowed. It gets back a short reply and any sources." },
     { on: ["n-speak", "n-ctrl", "n-ui"], title: "Speak",
-      text: "The page reads the reply aloud, \"Hey Sanjeev, today's date is October 11, Sunday,\" and the icon shows speaking. Listening is paused while it talks, then resumes." },
+      text: "The page reads the reply aloud, \"Hey Sanjeev, today's date is October 11, Sunday,\" and the icon shows speaking. Listening stays on: if you start talking, Nion stops at once and listens." },
     { on: ["n-store"], title: "Save",
       text: "The exchange is added to the current conversation in the browser's storage." },
     { on: ["n-hist", "n-store"], title: "Later: History",

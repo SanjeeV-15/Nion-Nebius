@@ -47,7 +47,8 @@ Navigation: Main screen to History and back. There is no other screen.
   - [ ] Saying "Hey Nion" plus a question gets a spoken answer without touching the screen.
   - [ ] The state icon visibly differs for waiting, listening, thinking, and speaking.
   - [ ] Saying "Hey Nion, let's start a conversation" starts a conversation where I can keep talking without repeating "Hey Nion."
-  - [ ] Saying "End the conversation" ends it, and Nion stops listening.
+  - [ ] Saying "End the conversation" ends it, and Nion stops listening. Close variants work too (for example "goodbye" or "I'm done"), and Nion copes when Chrome mishears the phrase.
+  - [ ] If I start talking while Nion is thinking or speaking, Nion stops at once and listens to me, and what I say next is treated as my new question.
 
 ### Designed for ears, not screens
 
@@ -118,6 +119,8 @@ Navigation: Main screen to History and back. There is no other screen.
 - **Monotone glass look.** Modern, sleek, between black and white, so state is shown by icons.
 - **History and transcripts together.** Transcripts live inside history; the person can copy them.
 - **Called Nion**, taken from the last letters of "Companion."
+- **A backup button starts and ends a conversation.** In testing, Chrome often wrote "Hey Nion" as "Indian" or "anyone", so the wake phrase missed. The button keeps the demo reliable; the voice commands remain the main path.
+- **Interrupting is in the first version.** After trying it, the learner found that Nion talking over them broke the "like a phone call" feeling. Nion keeps listening while it thinks and speaks and stops the moment the person talks. Tradeoff: on laptop speakers the microphone can hear Nion's own voice, so Nion filters out anything that is mostly what it is saying; earphones avoid the problem.
 - **Name asked once by voice, greeting once per conversation.** Nion asks the person's name the first time it is used. It greets them by name when a new conversation starts, not every turn, so it feels natural and not repetitive.
 
 ## What We're Building
@@ -161,5 +164,4 @@ Navigation: Main screen to History and back. There is no other screen.
 - **Delete a conversation from History?** The learner mentioned deleting early on but did not reconfirm. (Can wait; default is Later.)
 - **Nion's voice:** a single default voice and a friendly, warm tone are assumed, since settings are Later. (Assumption; can wait.)
 - **Pronunciation and the wake phrase:** "Nion" may be heard as "Neon" or similar. Decide how it is pronounced and that the wake phrase tolerates variants. (Must be answered in `4-spec`.)
-- **Interrupting:** what happens if the person talks while Nion is speaking. (Can wait.)
 - **Where current information comes from** (news, local places, directions). (Technical; `4-spec`.)
