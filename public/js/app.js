@@ -28,6 +28,7 @@ const el = {
   heard: document.getElementById("heard"),
   problem: document.getElementById("problem"),
   debug: document.getElementById("debug"),
+  orb: document.getElementById("orb"),
   copylog: document.getElementById("copylog"),
 };
 
@@ -532,6 +533,16 @@ async function ask(question, oneShot, gps) {
     await say(TROUBLE);
   }
 }
+
+// A manual way to stop Nion, for when your voice can't be heard over its own (on
+// laptop speakers the microphone hears Nion too): press Escape, or tap the circle.
+function stopNion() {
+  if (state === "speaking" || state === "thinking") interrupt();
+}
+el.orb.addEventListener("click", stopNion);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") stopNion();
+});
 
 el.convo.addEventListener("click", () => {
   if (state === "off") return;

@@ -135,6 +135,12 @@ main > * {
   opacity: 0.45;
 }
 
+/* While Nion is busy, tapping the circle stops it. */
+.orb[data-state="speaking"],
+.orb[data-state="thinking"] {
+  cursor: pointer;
+}
+
 .icon {
   display: none;
   width: 92px;

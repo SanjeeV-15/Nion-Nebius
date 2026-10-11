@@ -21,11 +21,16 @@ function titleCase(word) {
   return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
 
+// Nion's own name, and the greeting before it. If these end up in what was heard ("Sanjeev
+// Neon", from "Hey Neon, I'm Sanjeev"), they are not part of the person's name.
+const NION_WORDS = new Set(["nion", "neon", "nyan", "nian", "nyon", "hey"]);
+
 function toName(candidate) {
   const words = candidate
     .replace(/[.,!?]/g, " ")
     .split(/\s+/)
     .filter(Boolean)
+    .filter((w) => !NION_WORDS.has(w.toLowerCase()))
     // drop polite words at the end: "Sanjeev please"
     .filter((w, i, all) => !(i > 0 && ["please", "thanks"].includes(w.toLowerCase())));
 

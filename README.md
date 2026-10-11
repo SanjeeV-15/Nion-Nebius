@@ -58,14 +58,15 @@ The `.env` file is private: it is ignored by git and must never be committed or 
 | "Hey Nion, what are some places to eat around me?" | Nion asks where you are: say "use my location" or say a place |
 | "Hey Nion, what's the latest world news?" | Searches the web, names sources, says "one moment" if it takes a while |
 | "call me Sam" | Changes your name |
-| *(start talking while Nion talks)* | Nion stops and listens |
+| *(start talking while Nion talks)* | Nion stops and listens (works best with earphones) |
+| *(press Escape, or tap the circle)* | Stops Nion at once, when your voice can't be heard over its own |
 
 Chrome sometimes writes "Hey Nion" as "Indian", "anyone" or "any on". Nion accepts those,
 and there is also a **Start conversation** button as a backup. The **History** link keeps
 past conversations on your device, with a Copy button for each transcript.
 
 Open http://localhost:3000/?debug to see a log of what Nion hears and decides, and
-`?reset` to make it forget your name.
+`?reset` to make it forget your name. If Nion gets your name wrong, say "call me Sanjeev".
 
 ## Checks
 

@@ -45,6 +45,7 @@ class FakeRecognition {
 }
 
 let storage, elements, spoken, pending, fetches;
+let pageHandlers = {}; // things the page listens for, such as a key press
 
 // A pretend location feature. Tests set what the browser says about permission,
 // and whether getting the position works.
@@ -129,6 +130,7 @@ async function startApp({ name } = {}) {
   storage = new Map();
   if (name) storage.set("nion.name", name);
   elements = {};
+  pageHandlers = {};
   spoken = [];
   pending = [];
   fetches = [];
@@ -136,7 +138,10 @@ async function startApp({ name } = {}) {
   locationWorks = true;
   locationRequests = 0;
   globalThis.location = { search: "" };
-  globalThis.document = { getElementById: (id) => (elements[id] ??= makeElement()) };
+  globalThis.document = {
+    getElementById: (id) => (elements[id] ??= makeElement()),
+    addEventListener: (type, handler) => (pageHandlers[type] = handler),
+  };
   // A fresh copy of the app each time (the ?number makes Node load it again).
   await import(`../public/js/app.js?run=${++appVersion}`);
   // Don't wait for the click to finish: Nion starts speaking, and the pretend
@@ -580,4 +585,31 @@ test("a rejected API key is explained on screen", async () => {
   fetches[0].serverError("key");
   await tick();
   assert.match(elements.problem.textContent, /ANTHROPIC_API_KEY/);
+});
+
+test("pressing Escape stops Nion while it is speaking, and then it listens", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what time is it in Denver");
+  fetches[0].reply("It's one seventeen in Denver right now, and the weather there is clear.");
+  await tick();
+  assert.equal(pending.length, 1, "Nion is speaking");
+
+  pageHandlers.keydown({ key: "Escape" });
+  await tick();
+  assert.equal(pending.length, 0, "stopped");
+  assert.match(status(), /Listening/);
+});
+
+test("tapping the circle stops Nion, and Escape does nothing when Nion is idle", async () => {
+  await startApp({ name: "Sanjeev" });
+  pageHandlers.keydown({ key: "Escape" }); // nothing is happening: no effect
+  await tick();
+  assert.match(status(), /Waiting\. Say/);
+
+  await hear("hey nion what is the latest news");
+  assert.match(status(), /Thinking/);
+  elements.orb.click();
+  await tick();
+  assert.equal(fetches[0].aborted, true, "the request was cancelled");
+  assert.match(status(), /Listening/);
 });
