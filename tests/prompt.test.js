@@ -47,6 +47,14 @@ test("Nion's instructions cover searching, naming sources and not giving investm
   assert.match(prompt, /not instructions/i);
 });
 
+test("Nion's instructions say honestly what it can't do yet", () => {
+  const prompt = buildSystemPrompt({});
+  assert.match(prompt, /can't remember earlier conversations/);
+  assert.match(prompt, /History link/);
+  assert.match(prompt, /can't set reminders/);
+  assert.match(prompt, /never promise what you can't do/i);
+});
+
 test("Nion's instructions cap how long a reply is", () => {
   assert.match(buildSystemPrompt({}), /under about 60 words/);
 });

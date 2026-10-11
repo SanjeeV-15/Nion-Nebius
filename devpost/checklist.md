@@ -106,6 +106,8 @@ Build mode: learn
 
 ## Final Review
 
+- [ ] Nion describes what it can and can't do accurately: no memory across conversations yet, History keeps transcripts it can't read, no reminders or to-do changes, and drafts are short and not saved or sent. (From the learner's exploring: asked to continue tomorrow, Nion said it didn't know whether the conversation was saved; asked for an email draft, it read about 90 words aloud.)
+- [ ] The learner's product ideas are recorded as Later notes in `prd.md`: memory across conversations, to-do and notes integration, email drafts saved for review, think-out-loud summaries, and a daily habit loop.
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship
 
 ## Code Tour and App Map

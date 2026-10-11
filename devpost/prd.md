@@ -156,6 +156,13 @@ Navigation: Main screen to History and back. There is no other screen.
 
 ## Possible Later Enhancements
 
+Added after the learner explored the finished proof of concept. These are ideas, not commitments, and none are built. They point at the same goal: turning Nion from a tool people try into something they use every day.
+
+- **Memory across conversations.** Today each conversation starts fresh (History keeps transcripts that Nion cannot read). Letting Nion read recent History would let a person say "pick up where we left off yesterday."
+- **To-do lists and notes.** "What's on my list today?", "add this task." A web page cannot write to Apple Reminders or Notes directly, so this needs a service with an open API (for example Todoist, Google Tasks or Notion), iPhone Shortcuts, or a native app.
+- **Email drafts saved for review.** "Draft an email to so-and-so, here's the context" would create a draft in Gmail or Outlook for the person to review and send themselves. Nion should only draft, never send, without a clear spoken confirmation, and should treat the contents of emails as information, not instructions.
+- **Think-out-loud summaries.** After talking something through, Nion says a short "here's what you decided" and saves it as a note or tasks. This is where Nion differs from dictation tools like Wispr Flow, which transcribe but do not talk back.
+- **A daily habit loop.** A morning "plan my day" and an evening "wrap up" conversation that leave behind tasks, notes and drafts, with memory so tomorrow continues today. The learner's view: depth beats breadth, so a few integrations that serve this loop matter more than connecting to many apps.
 - Wearable and ambient context (for example, a Bee wearable or watch).
 - Travel-specific help such as flight and gate awareness and "when should I leave for the airport?"
 - Memory of a trip across conversations.

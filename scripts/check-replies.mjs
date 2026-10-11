@@ -28,7 +28,7 @@ function writtenStyleProblems(reply) {
   if (/[*#_`>|]/.test(reply)) problems.push("has markdown symbols");
   if (/^\s*(?:[-•]|\d+[.)])\s/m.test(reply)) problems.push("has a bulleted or numbered list");
   if (/https?:\/\/|www\./i.test(reply)) problems.push("has a link");
-  if (/\b(?:click|tap|scroll|take a look|have a look|you can look|look at (?:the|this|that) (?:screen|list|link|page|map)|see below|see above|on your screen)\b/i.test(reply)) problems.push("tells the person to look at something");
+  if (/\b(?:click|tap|scroll|you can look|look at (?:the|this|that) (?:screen|list|link|page|map)|see below|see above|on your screen)\b/i.test(reply)) problems.push("tells the person to look at something");
   return problems;
 }
 
@@ -203,6 +203,36 @@ const checks = [
     verify(reply, result) {
       if (result.needsLocation) return ["asked for a location it did not need"];
       return /\b(?:three|3)\b/i.test(reply) ? [] : ["does not say three"];
+    },
+  },
+  {
+    name: "Memory: honest that it can't remember yet, and points to History",
+    question: "When I continue talking to you tomorrow, can we continue this conversation?",
+    verify(reply) {
+      const problems = [];
+      if (!/\bhistory\b/i.test(reply)) problems.push("does not mention History");
+      if (!/\b(?:can't|cannot|don't|not able|unable|won't|doesn't)\b/i.test(reply)) problems.push("does not say it can't remember");
+      return problems;
+    },
+  },
+  {
+    name: "Reminders and to-dos: says it can't yet, and does not pretend",
+    question: "Can you add buy milk to my to-do list and set a reminder for 5 pm?",
+    verify(reply) {
+      const problems = [];
+      if (!/\b(?:can't|cannot|not able|unable|don't have|isn't something|not yet)\b/i.test(reply)) problems.push("does not say it can't");
+      if (/\b(?:I've (?:added|set)|I have (?:added|set)|it's (?:added|set)|all set|done)\b/i.test(reply)) problems.push("claims to have done it");
+      return problems;
+    },
+  },
+  {
+    name: "Drafting an email: short, and says it can't save or send it yet",
+    question: "Can you draft an email to my landlord saying the sink is leaking?",
+    verify(reply) {
+      const problems = [];
+      if (wordCount(reply) > 85) problems.push(`too long to listen to (${wordCount(reply)} words)`);
+      if (!/\b(?:can't|cannot|not able|unable|don't)\b[^.]{0,40}\b(?:send|save)\b|\b(?:send|save)\b[^.]{0,30}\b(?:yet|can't)\b|\bcopy\b/i.test(reply)) problems.push("does not say it can't save or send it yet");
+      return problems;
     },
   },
 ];
