@@ -20,6 +20,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 // Loaded after the key check so a missing key gives the message above.
 const { askNion } = await import("./brain.js");
 const { resolvePlace, describePlace, cleanPlacePart } = await import("./place.js");
+const { classifyFailure } = await import("./failure.js");
 const { default: Anthropic } = await import("@anthropic-ai/sdk");
 const claude = new Anthropic();
 
@@ -117,7 +118,7 @@ app.post("/api/chat", async (req, res) => {
     res.json({ reply, sources, place: place?.fromGps ? place.text : undefined });
   } catch (error) {
     console.error("Claude request failed:", error?.status ?? "", error?.message ?? error);
-    res.status(502).json({ error: "I'm having trouble reaching my sources." });
+    res.status(502).json({ error: "I'm having trouble reaching my sources.", reason: classifyFailure(error) });
   }
 });
 

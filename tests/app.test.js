@@ -99,7 +99,7 @@ globalThis.fetch = (url, options) =>
       respond,
       needLocation: () => respond({ needsLocation: true }),
       // The server had a problem (for example it could not reach Claude).
-      serverError: () => resolve({ ok: false, status: 502, json: async () => ({ error: "trouble" }) }),
+      serverError: (reason) => resolve({ ok: false, status: 502, json: async () => ({ error: "trouble", reason }) }),
     };
     options.signal?.addEventListener("abort", () => {
       call.aborted = true;
@@ -559,4 +559,24 @@ test("a 'one moment' that was already being spoken finishes before the trouble m
   await finishSpeaking();
   await tick();
   assert.match(saidSoFar(), /trouble/);
+});
+
+test("when the API credit has run out, the screen says so, and Nion still only says the short message", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  fetches[0].serverError("credit");
+  await tick();
+
+  assert.match(elements.problem.textContent, /credit has run out/i);
+  assert.match(elements.problem.textContent, /Plans & Billing/);
+  assert.match(saidSoFar(), /having trouble reaching my sources/i);
+  assert.doesNotMatch(saidSoFar(), /credit/i, "billing details are not read out to a listener");
+});
+
+test("a rejected API key is explained on screen", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  fetches[0].serverError("key");
+  await tick();
+  assert.match(elements.problem.textContent, /ANTHROPIC_API_KEY/);
 });

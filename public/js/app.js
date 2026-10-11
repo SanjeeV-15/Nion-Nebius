@@ -79,6 +79,13 @@ const FILLER_AFTER_MS = 2200;
 // sitting on "thinking" for ever. A web search normally takes under 10 seconds.
 const ASK_TIMEOUT_MS = 25000;
 const TROUBLE = "I'm having trouble reaching my sources. Please try again in a moment.";
+
+// What to show on screen for the person running Nion, by the reason the server gives.
+const PROBLEM_TEXT = {
+  credit: "Your Claude API credit has run out. Add credit in the Anthropic Console (Plans & Billing), then try again.",
+  key: "The Claude API key was rejected. Check ANTHROPIC_API_KEY in your .env file.",
+  busy: "Claude is busy right now. Try again in a moment.",
+};
 const FILLERS = ["One moment.", "Let me check.", "Checking on that.", "Just a second."];
 let lastFiller = -1;
 function nextFiller() {
@@ -481,7 +488,10 @@ async function ask(question, oneShot, gps) {
         location: gps ?? (known.place ? { text: known.place } : undefined),
       }),
     });
-    if (!response.ok) throw new Error(`Server said ${response.status}`);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw Object.assign(new Error(`Server said ${response.status}`), { reason: body.reason });
+    }
     const data = await response.json();
 
     clearTimeout(askTimeout);
@@ -514,7 +524,10 @@ async function ask(question, oneShot, gps) {
     thread.pop(); // the question got no answer, so take it back out
     if (mine !== turn) return; // that was us cancelling because you interrupted
     console.error(error);
-    showProblem("Nion couldn't get an answer. If this keeps happening, check the terminal where npm start is running.");
+    showProblem(
+      PROBLEM_TEXT[error?.reason] ??
+        "Nion couldn't get an answer. If this keeps happening, check the terminal where npm start is running."
+    );
     await fillerDone; // let a "one moment" finish before saying this
     await say(TROUBLE);
   }
