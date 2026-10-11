@@ -59,7 +59,7 @@ Build mode: learn
   Learner check: Ask the four sample questions aloud and say whether Nion sounds like a thoughtful person or a search engine, and what you would change.
   Commit: `Add spoken-answer rules for Nion`
 
-- [ ] **6. Current events with sources spoken aloud**
+- [x] **6. Current events with sources spoken aloud**
   Becomes usable: Nion answers news and markets questions using web search, says which source each point comes from, says so when it finds nothing, and summarizes markets without telling you what to buy or sell.
   Why now: It is the riskiest outside dependency after the voice loop (search tool shape, slower replies, cost), so we find problems before the location slice builds on it.
   PRD ref: `prd.md > Current events and sources`, `prd.md > Questions Nion can answer`, `prd.md > Non-Goals`

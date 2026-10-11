@@ -76,8 +76,14 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
-    const { reply } = await askNion({ messages, context: cleanContext(context) });
-    res.json({ reply });
+    const { reply, sources, usage } = await askNion({ messages, context: cleanContext(context) });
+    // A line per question, so you can see how much searching is going on (each
+    // search costs about a cent).
+    console.log(
+      `Answered: ${usage.searches} search(es), ${usage.inputTokens} tokens in, ${usage.outputTokens} out` +
+        (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "")
+    );
+    res.json({ reply, sources });
   } catch (error) {
     console.error("Claude request failed:", error?.status ?? "", error?.message ?? error);
     res.status(502).json({ error: "I'm having trouble reaching my sources." });

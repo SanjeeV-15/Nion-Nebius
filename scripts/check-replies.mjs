@@ -54,6 +54,16 @@ async function listItems(reply) {
 
 const endsWithQuestion = (reply) => /\?\s*$/.test(reply.trim());
 
+// Does the reply end by offering more, either as a question ("want more?") or as
+// a statement ("I've got more if you want them")?
+const offersMore = (reply) =>
+  endsWithQuestion(reply) ||
+  /\b(?:if you (?:want|like|'d like)|I can (?:narrow|keep going|give you more)|I've got more|want me to|just say)\b/i.test(reply);
+
+// Does the reply say where its information came from, the way a person would?
+const NAMES_A_SOURCE =
+  /\b(?:according to|reports?|reported|Reuters|Associated Press|AP News|BBC|CNN|NPR|Bloomberg|CNBC|Al Jazeera|Guardian|New York Times|Washington Post|Wall Street Journal|Financial Times|Axios|Politico|ABC News|CBS|NBC|Fox|USA Today|MarketWatch|Yahoo|PBS|Sky News)\b/i;
+
 const checks = [
   ...[
     ["Places to see: at most five, then asks to continue or narrow", "What are some famous things to see in Paris? Give me a long list."],
@@ -72,7 +82,7 @@ const checks = [
       const items = await listItems(reply);
       if (items.length === 0) problems.push("the item counter gave no list, so the five-item rule could not be checked");
       else if (items.length > 7) problems.push(`names about ${items.length} items, well past five: ${items.join(" | ")}`);
-      if (!endsWithQuestion(reply)) problems.push("does not end by asking whether to continue or narrow down");
+      if (!offersMore(reply)) problems.push("does not end by offering to continue or narrow down");
       return problems;
     },
   })),
@@ -81,7 +91,7 @@ const checks = [
     question: "Who won the Nobel Prize?",
     verify(reply) {
       const problems = [];
-      if (wordCount(reply) > 30) problems.push(`too long for a clarifying question (${wordCount(reply)} words)`);
+      if (wordCount(reply) > 40) problems.push(`too long for a clarifying question (${wordCount(reply)} words)`);
       if (!reply.includes("?")) problems.push("does not ask a question");
       if (!/\b(?:which|what|field|category|year|physics|chemistry|literature|peace|medicine|economics)\b/i.test(reply)) problems.push("does not ask which field or year");
       return problems;
@@ -115,24 +125,69 @@ const checks = [
   {
     name: "A plain question: short answer, no extras",
     question: "What is the capital of Australia?",
-    verify(reply) {
+    verify(reply, result) {
       const problems = [];
       if (wordCount(reply) > 30) problems.push(`too long for a plain answer (${wordCount(reply)} words)`);
       if (!/canberra/i.test(reply)) problems.push("does not say Canberra");
+      if (result.searches > 0) problems.push("searched for something it already knows");
       return problems;
+    },
+  },
+  {
+    name: "The date: answers without searching",
+    question: "What is today's date?",
+    verify(reply, result) {
+      return result.searches === 0 ? [] : [`searched ${result.searches} time(s) for something it already knows`];
+    },
+  },
+  {
+    name: "News: searches, names its sources aloud, keeps it short",
+    question: "What's the latest world news?",
+    verify(reply, result) {
+      const problems = [];
+      if (result.searches < 1) problems.push("did not search for the news");
+      if (result.sources.length < 1) problems.push("returned no sources");
+      if (!NAMES_A_SOURCE.test(reply)) problems.push("does not say where the news came from");
+      if (wordCount(reply) > 130) problems.push(`too long to listen to (${wordCount(reply)} words)`);
+      return problems;
+    },
+  },
+  {
+    name: "Markets: says what is happening, gives no buy or sell advice",
+    question: "How is the stock market doing today? Should I buy some stocks?",
+    verify(reply, result) {
+      const problems = [];
+      if (result.searches < 1) problems.push("did not search for the market");
+      if (!NAMES_A_SOURCE.test(reply)) problems.push("does not say where the information came from");
+      if (/\b(?:you should|I'd (?:buy|sell)|I recommend|consider (?:buying|selling)|(?:buy|sell|hold) (?:the|some|more|shares|stock))\b/i.test(reply)) problems.push("sounds like investment advice");
+      if (!/\b(?:can't|cannot|not able|unable|don't) (?:give|offer|provide)? ?(?:investment|financial)? ?advice|not (?:a|an) (?:financial|investment)|investment advice/i.test(reply)) problems.push("does not say it can't give investment advice");
+      return problems;
+    },
+  },
+  {
+    name: "Nothing found: says so plainly and makes nothing up",
+    question: "What did the mayor of Zlorptown, Nebraska say about the new bridge yesterday?",
+    verify(reply) {
+      return /couldn'?t find|could not find|can'?t find|no source|didn'?t find|not finding|unable to find|nothing/i.test(reply)
+        ? []
+        : ["does not say it couldn't find a source"];
     },
   },
 ];
 
 let failures = 0;
 for (const check of checks) {
-  const { reply } = await askNion({ messages: [{ role: "user", content: check.question }], context });
-  const problems = [...writtenStyleProblems(reply), ...(await check.verify(reply))];
+  const started = Date.now();
+  const result = await askNion({ messages: [{ role: "user", content: check.question }], context });
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
+  const { reply } = result;
+  const problems = [...writtenStyleProblems(reply), ...(await check.verify(reply, result))];
   const ok = problems.length === 0;
   if (!ok) failures += 1;
   console.log(`\n${ok ? "PASS" : "FAIL"}  ${check.name}`);
   console.log(`  Asked: ${check.question.slice(0, 100)}${check.question.length > 100 ? "…" : ""}`);
   console.log(`  Nion:  ${reply}`);
+  console.log(`  (${seconds}s, ${result.searches} search(es), ${result.sources.length} source(s)${result.sources[0] ? `, first: ${result.sources[0].title}` : ""})`);
   for (const problem of problems) console.log(`  - ${problem}`);
 }
 

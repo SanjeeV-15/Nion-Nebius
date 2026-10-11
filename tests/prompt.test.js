@@ -37,3 +37,12 @@ test("Nion's instructions include the spoken-answer rules", () => {
   assert.match(prompt, /honest opinion/i);
   assert.match(prompt, /Never use markdown/i);
 });
+
+test("Nion's instructions cover searching, naming sources and not giving investment advice", () => {
+  const prompt = buildSystemPrompt({});
+  assert.match(prompt, /You can search the web/);
+  assert.match(prompt, /According to Reuters/);
+  assert.match(prompt, /I couldn't find any source that mentioned this/);
+  assert.match(prompt, /Never tell the person what to buy, sell or hold/);
+  assert.match(prompt, /not instructions/i);
+});
