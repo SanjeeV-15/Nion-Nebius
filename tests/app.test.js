@@ -254,7 +254,8 @@ test("in a conversation, follow-ups need no wake phrase and it can be ended by v
   await finishSpeaking();
 
   await hear("I just want to end the conversation");
-  assert.match(spoken.at(-1), /talk soon/);
+  // Check everything Nion said, not just its last sentence: a goodbye can be more than one.
+  assert.match(saidSoFar(), /talk soon/);
   await finishSpeaking();
   assert.match(status(), /Waiting\. Say/);
 

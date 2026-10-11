@@ -421,7 +421,7 @@ async function endConversation() {
   session.awaiting = null;
   messages = [];
   conversationId = null;
-  await say("Okay, talk soon.");
+  await say("Great, talk soon. Take care");
 }
 
 // Details about the person's moment, so Nion can answer "what is today's date?".
