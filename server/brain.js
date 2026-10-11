@@ -29,7 +29,7 @@ const NEED_LOCATION = "[[NEED_LOCATION]]";
  * Returns { reply, sources, searches, usage } where reply is the text Nion should
  * speak and sources are the pages it used, as [{ title, url }].
  */
-export async function askNion({ messages, context, location }) {
+export async function askNion({ messages, context, location, model = MODEL }) {
   let thread = messages;
   let response;
   let searches = 0;
@@ -40,7 +40,7 @@ export async function askNion({ messages, context, location }) {
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     response = await client.messages.create({
-      model: MODEL,
+      model,
       // A generous ceiling, not a target. Nion's answers are short, but the model
       // may also spend some of this budget thinking before it answers.
       max_tokens: 4096,

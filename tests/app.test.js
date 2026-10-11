@@ -98,6 +98,8 @@ globalThis.fetch = (url, options) =>
       reply: (text) => respond({ reply: text }),
       respond,
       needLocation: () => respond({ needsLocation: true }),
+      // The server had a problem (for example it could not reach Claude).
+      serverError: () => resolve({ ok: false, status: 502, json: async () => ({ error: "trouble" }) }),
     };
     options.signal?.addEventListener("abort", () => {
       call.aborted = true;
@@ -518,4 +520,43 @@ test("a question that was interrupted before it was answered is not saved", asyn
   await hear("wait actually", { final: false });
   assert.equal(fetches[0].aborted, true);
   assert.equal(saved().length, 0);
+});
+
+test("when the server has a problem, Nion says so out loud and nothing is saved", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  fetches[0].serverError();
+  await tick();
+
+  assert.match(saidSoFar(), /having trouble reaching my sources/i);
+  assert.match(elements.problem.textContent, /couldn't get an answer/i);
+  assert.equal(saved().length, 0);
+  await finishSpeaking();
+  assert.match(status(), /Waiting\. Say/, "back to waiting, not stuck on thinking");
+});
+
+test("an answer that takes more than 25 seconds is given up on, out loud", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  assert.match(status(), /Thinking/);
+
+  firePending(25000);
+  await tick();
+  assert.equal(fetches[0].aborted, true, "the slow request was cancelled");
+  assert.match(saidSoFar(), /having trouble reaching my sources/i);
+});
+
+test("a 'one moment' that was already being spoken finishes before the trouble message", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  firePending(2200);
+  await tick();
+  assert.match(saidSoFar(), FILLER);
+
+  fetches[0].serverError();
+  await tick();
+  assert.doesNotMatch(saidSoFar(), /trouble/, "waits for the filler to end");
+  await finishSpeaking();
+  await tick();
+  assert.match(saidSoFar(), /trouble/);
 });

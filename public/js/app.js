@@ -74,6 +74,11 @@ let followUpTimer = null;
 // web), Nion says a short "one moment" so you know it hasn't stalled. Ordinary
 // answers arrive in about 1 to 2 seconds, so they don't trigger it.
 const FILLER_AFTER_MS = 2200;
+
+// If there is still no answer after this long, give up and say so, instead of
+// sitting on "thinking" for ever. A web search normally takes under 10 seconds.
+const ASK_TIMEOUT_MS = 25000;
+const TROUBLE = "I'm having trouble reaching my sources. Please try again in a moment.";
 const FILLERS = ["One moment.", "Let me check.", "Checking on that.", "Just a second."];
 let lastFiller = -1;
 function nextFiller() {
@@ -445,7 +450,9 @@ async function ask(question, oneShot, gps) {
   const thread = messages;
   thread.push({ role: "user", content: question });
 
-  abortAsk = new AbortController();
+  const controller = new AbortController();
+  abortAsk = controller;
+  const askTimeout = setTimeout(() => controller.abort(), ASK_TIMEOUT_MS);
 
   // If the answer is slow, say a short "one moment". The real answer then waits
   // until that has finished, so the two never overlap.
@@ -463,7 +470,7 @@ async function ask(question, oneShot, gps) {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: abortAsk.signal,
+      signal: controller.signal,
       body: JSON.stringify({
         // Keep only the most recent turns so the request stays small.
         messages: thread.slice(-20),
@@ -477,6 +484,7 @@ async function ask(question, oneShot, gps) {
     if (!response.ok) throw new Error(`Server said ${response.status}`);
     const data = await response.json();
 
+    clearTimeout(askTimeout);
     clearTimeout(fillerTimer);
     await fillerDone; // let "one moment" finish before the answer starts
 
@@ -500,13 +508,15 @@ async function ask(question, oneShot, gps) {
     // After an answer, leave the follow-up window open for a moment.
     if (finished && !session.active) openFollowUp();
   } catch (error) {
+    clearTimeout(askTimeout);
     clearTimeout(fillerTimer);
     echo.until = Date.now() + ECHO_TAIL_MS; // a "one moment" may have been spoken
     thread.pop(); // the question got no answer, so take it back out
     if (mine !== turn) return; // that was us cancelling because you interrupted
     console.error(error);
-    showProblem("Nion couldn't get an answer. Check the terminal where npm start is running.");
-    setState("waiting");
+    showProblem("Nion couldn't get an answer. If this keeps happening, check the terminal where npm start is running.");
+    await fillerDone; // let a "one moment" finish before saying this
+    await say(TROUBLE);
   }
 }
 
@@ -537,5 +547,6 @@ el.start.addEventListener("click", async () => {
 
 if (!speechInSupported || !speechOutSupported) {
   el.start.hidden = true;
-  showProblem("This browser can't do speech. Please open Nion in Chrome.");
+  el.status.textContent = "Nion needs a browser that can do speech.";
+  showProblem("This browser can't listen or speak. Please open Nion in Google Chrome.");
 }

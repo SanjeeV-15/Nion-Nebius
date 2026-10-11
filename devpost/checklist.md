@@ -89,7 +89,7 @@ Build mode: learn
   Learner check: Have a short conversation, open History, open it, press Copy, and paste it somewhere to confirm the text.
   Commit: `Add conversation history with copyable transcripts`
 
-- [ ] **9. When things go wrong, and how fast it feels**
+- [x] **9. When things go wrong, and how fast it feels**
   Becomes usable: Nion handles the realistic failures gracefully (unsupported browser, Claude or search failing, missing key), and we measure how fast it responds so we can decide on the model.
   Why now: The demo must survive a bad moment, and your "change the model if it feels slow" decision needs real numbers.
   PRD ref: `prd.md > States and Boundaries`, `prd.md > Product Decisions`
@@ -132,4 +132,5 @@ Activity mode: not yet done
 - While testing slice 7, an echo-filter bug was found and fixed: when Nion asks "say use my location", the natural answer repeats those words and was being discarded as Nion's own voice. Short answers are now let through while Nion is waiting for one.
 - Replies are now limited to about 60 words: a real location test produced a 38 second spoken answer, and measuring showed local and news answers ran 60 to 120 words (25 to 45 seconds). Recorded in `prd.md` and `spec.md`.
 - "End the conversation, thank you" (heard as "and the conversation thank you") now ends the conversation.
+- Speed check (slice 9) measured Sonnet 5.5 as fast as or faster than Haiku 5.5 on five sample questions (10.2s vs 13.8s added up), so the model stays Sonnet 5.5. Failures are spoken aloud with a 25 second time limit. The README is finished for a fresh copy of the project.
 
