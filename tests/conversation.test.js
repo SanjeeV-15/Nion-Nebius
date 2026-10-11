@@ -118,3 +118,29 @@ test("when Chrome writes 'Hey Nion' as 'anyone', it wakes Nion only for starting
   assert.equal(parseUtterance("anyone know the time").woke, false);
   assert.equal(parseUtterance("can anyone help me").woke, false);
 });
+
+test("the other ways Chrome wrote 'Hey Nion' on the phone all wake Nion", () => {
+  for (const [heard, question] of [
+    ["Any on what can you do", "what can you do"],
+    ["Any neon what can you do", "what can you do"],
+    ["A neon what is 7+7", "what is 7+7"],
+    ["Neon what is 7+7", "what is 7+7"],
+    ["Nion, what's the weather like", "what's the weather like"],
+  ]) {
+    const result = parseUtterance(heard);
+    assert.equal(result.woke, true, `should wake for: "${heard}"`);
+    assert.equal(result.question, question, `question for: "${heard}"`);
+  }
+});
+
+test("ordinary sentences that start with those sounds do not wake Nion", () => {
+  for (const heard of [
+    "neon signs are pretty",
+    "a neon sign in the window",
+    "any on the list",
+    "nion is a nice name",
+    "what can you do",
+  ]) {
+    assert.equal(parseUtterance(heard).woke, false, `should not wake: "${heard}"`);
+  }
+});

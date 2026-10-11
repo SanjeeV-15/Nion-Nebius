@@ -12,16 +12,18 @@ const GREETING = "(?:hey|hay|hi|hello|ok|okay)";
 // A greeting, a gap (spaces or punctuation), then the name, then more gap.
 const WAKE = new RegExp(`\\b${GREETING}[\\s,.!?-]+${NAME}\\b[\\s,.!?-]*`, "i");
 
-// In testing, Chrome wrote "Hey Nion" as "Indian" ("Indian, let's start a
-// conversation"). "Indian" alone is a normal word, so it only counts as the wake
-// phrase at the very start, when it is followed by a word that begins a request.
-// "Anyone" is the other common one, so it is held to a stricter rule: only when
-// followed by words that start a conversation or a question.
+// In testing, Chrome wrote "Hey Nion" in several other ways: "Indian", "anyone",
+// "any on", "any neon", "a neon", and just "neon" with no "hey". These are ordinary
+// words or sounds, so they only count as the wake phrase at the very start, and
+// only when followed by a word that begins a request ("what", "how", "let's"...).
+const REQUEST_WORDS = "(?:let's|let us|start|begin|can we|can you|please|what|what's|how|where|when|who|why|tell)";
 const MISHEARD_WAKE = new RegExp(
   "^\\s*(?:" +
-    "indian[\\s,.!?-]+(?=(?:let's|let us|start|begin|can we|please|what|what's|how|where|when|who|why|tell)\\b)" +
+    `indian[\\s,.!?-]+(?=${REQUEST_WORDS}\\b)` +
+    // "anyone" is a real word ("anyone know the time?"), so it is held to a stricter rule.
     "|any\\s?one[\\s,.!?-]+(?=(?:let's|let us|start|begin|what's|what is|tell me|can you)\\b)" +
-    ")",
+    `|(?:any\\s?on|any\\s?neon|a\\s?neon|neon|nion|nyan)[\\s,.!?-]+(?=${REQUEST_WORDS}\\b)` +
+  ")",
   "i"
 );
 
