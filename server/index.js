@@ -19,6 +19,9 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 // Loaded after the key check so a missing key gives the message above.
 const { askNion } = await import("./brain.js");
+const { resolvePlace, describePlace, cleanPlacePart } = await import("./place.js");
+const { default: Anthropic } = await import("@anthropic-ai/sdk");
+const claude = new Anthropic();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -54,8 +57,27 @@ function cleanContext(raw = {}) {
   };
 }
 
+// The person's location arrives either as GPS numbers ({ lat, lon }) or as a place
+// they said out loud ({ text: "Brickell, Miami" }). Either way, work out a place
+// to use, or return null if there isn't one.
+async function resolveLocation(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  if (Number.isFinite(raw.lat) && Number.isFinite(raw.lon)) {
+    const place = await resolvePlace(claude, raw.lat, raw.lon);
+    return place ? { ...place, text: describePlace(place), fromGps: true } : { failed: true };
+  }
+
+  if (typeof raw.text === "string") {
+    // Something the person said, so keep only letters, numbers and a few marks.
+    const text = raw.text.replace(/[^\p{L}\p{N}\p{M}\s,.'#&-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 80);
+    return text ? { text } : null;
+  }
+  return null;
+}
+
 app.post("/api/chat", async (req, res) => {
-  const { messages, context } = req.body ?? {};
+  const { messages, context, location } = req.body ?? {};
 
   // Check the request looks right before spending money on it.
   const valid =
@@ -76,14 +98,23 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
-    const { reply, sources, usage } = await askNion({ messages, context: cleanContext(context) });
+    const place = await resolveLocation(location);
+    if (place?.failed) return res.json({ needsLocation: true, locationFailed: true });
+
+    const { reply, sources, usage, needsLocation } = await askNion({
+      messages,
+      context: { ...cleanContext(context), place: place?.text },
+      location: place && !place.failed ? { city: place.city, region: place.region, country: place.country } : undefined,
+    });
     // A line per question, so you can see how much searching is going on (each
     // search costs about a cent).
     console.log(
       `Answered: ${usage.searches} search(es), ${usage.inputTokens} tokens in, ${usage.outputTokens} out` +
         (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "")
     );
-    res.json({ reply, sources });
+    if (needsLocation) return res.json({ needsLocation: true });
+    // Tell the page which place was worked out from GPS, so it can say it and use it next time.
+    res.json({ reply, sources, place: place?.fromGps ? place.text : undefined });
   } catch (error) {
     console.error("Claude request failed:", error?.status ?? "", error?.message ?? error);
     res.status(502).json({ error: "I'm having trouble reaching my sources." });

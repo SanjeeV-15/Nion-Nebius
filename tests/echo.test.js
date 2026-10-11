@@ -95,3 +95,11 @@ test("'okay in the conversation' (how Chrome wrote 'end the conversation') ends 
   // but a real sentence that merely contains those words does not
   assert.equal(detectCommand("okay what did we say in the conversation earlier"), null);
 });
+
+test("'end the conversation, thank you' still ends it when Chrome mishears the start", () => {
+  assert.equal(detectCommand("and the conversation thank you"), "end");
+  assert.equal(detectCommand("and the conversation, thanks"), "end");
+  assert.equal(detectCommand("okay in the conversation please"), "end");
+  // a real sentence is still not an end command
+  assert.equal(detectCommand("and the conversation went really well thank you"), null);
+});

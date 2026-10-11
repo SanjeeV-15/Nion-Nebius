@@ -46,3 +46,7 @@ test("Nion's instructions cover searching, naming sources and not giving investm
   assert.match(prompt, /Never tell the person what to buy, sell or hold/);
   assert.match(prompt, /not instructions/i);
 });
+
+test("Nion's instructions cap how long a reply is", () => {
+  assert.match(buildSystemPrompt({}), /under about 60 words/);
+});

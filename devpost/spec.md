@@ -109,7 +109,7 @@ PRD ref: `prd.md > Voice conversation`, `prd.md > Designed for ears, not screens
 File: `public/js/speech-out.js`.
 
 ### Location
-Asks the browser for the device's location only when the brain says a question needs it (never at startup). If it's denied or unavailable, Nion asks by voice: allow location, or say where you are. A spoken place ("I'm in Miami") is remembered for the rest of the conversation.
+Asks the browser for the device's location only when the brain says a question needs it (never at startup). When the question needs one and none is known, the brain answers with a marker, the page asks by voice ("You can say use my location and allow it when asked, or just tell me where you are"), and the original question is asked again once there is a place. If the person has already allowed location for the site, it is used without asking. GPS numbers are turned into a place by `server/place.js` (OpenStreetMap's free Nominatim lookup for a neighbourhood and city, with a small Claude model naming just the city as a fallback); a place said out loud is cleaned and used as it is. The place is remembered until the page closes. If it's denied or unavailable, Nion asks by voice: allow location, or say where you are. A spoken place ("I'm in Miami") is remembered for the rest of the conversation.
 PRD ref: `prd.md > Where am I`, `prd.md > States and Boundaries`.
 File: `public/js/location.js`.
 
@@ -186,6 +186,12 @@ voice-companion/
 - **Docs:** https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview and https://platform.claude.com/docs/en/about-claude/pricing
 - **Rate limits:** not looked up; a few test requests per minute is far below normal limits.
 
+### OpenStreetMap Nominatim (place lookup)
+- **What for:** turning GPS coordinates into a neighbourhood and city (for example "Brickell, Miami"), so "near me" means near the person and not the whole city. Added during slice 7 after testing showed that city-only results spread "near me" across a whole metro area.
+- **Call:** `GET https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&addressdetails=1&lat=...&lon=...` from `server/place.js`, with an identifying User-Agent, at most one request a second, and answers remembered for about a hundred metres.
+- **Key and cost:** none (free public service). Usage rules: https://operations.osmfoundation.org/policies/nominatim/
+- **Privacy:** the person's coordinates go to OpenStreetMap's server for this lookup, and the resulting place text goes to Anthropic (in Nion's instructions and web searches). Nothing is stored by Nion; the place lives in the page's memory until it closes. This is a second outside service, which the original plan wanted to avoid; it was added because the precision matters for the main use.
+
 ### Browser features
 - Speech recognition, speech synthesis, geolocation, and browser storage. No key, no cost. Speech recognition in Chrome sends your audio to the browser maker's speech service to turn it into text, so it needs an internet connection and the audio leaves the laptop.
 
@@ -212,6 +218,9 @@ voice-companion/
 ## Decisions and Open Issues
 
 ### Changed during the build
+- **A word limit on replies.** "Short" had no number, and a real location test produced a 38 second answer. Nion's instructions now say under about 60 words, with list items kept to a short phrase, and `npm run check:replies` fails a reply over 85 words. Measured replies dropped from 60 to 120 words to 44 to 61.
+- **Location (slice 7) added an OpenStreetMap lookup.** The spec hoped to pass location to web search with Claude as the only outside service. Testing showed Claude names the right city from coordinates but guesses neighbourhoods wrongly (it called Union Station "Highland"), and with city-only results, "near me" spread across all of Miami. OpenStreetMap's free lookup gave correct neighbourhoods (Brickell, Union Station), so it is used first, with Claude as the fallback.
+- **Short answers skip the echo filter when Nion is waiting for one.** Found by a test: after Nion says "you can say use my location", the natural reply repeats those words, and the echo filter was discarding it.
 - **A "one moment" filler for slow answers.** If Claude hasn't answered after 2.2 seconds (`FILLER_AFTER_MS` in `app.js`), Nion speaks a short filler phrase, and the real answer waits for it to finish so they never overlap. Interrupting during it cancels the request. Added after the learner tried web search and liked the idea.
 - **Web search is in (slice 6).** Real searches work: news, markets (with no buy or sell advice), "nothing found" answered plainly, and no searching for things Nion already knows. Search adds 3 to 5 seconds, so the thinking icon matters. Each search costs about a cent, so the server logs a line per question with the searches used.
 - **Phone check passed on an iPhone.** Through a temporary secure tunnel, an iPhone ran Nion's speech recognition, name question, spoken answers and interrupting. This is better than the spec feared, so the phone stays in the plan as the headline demo, with the laptop recording as the fallback. It will need a hosted secure address; the tunnel was only for testing.

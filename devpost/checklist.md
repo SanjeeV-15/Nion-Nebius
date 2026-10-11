@@ -69,7 +69,7 @@ Build mode: learn
   Learner check: Ask "What's the latest world news?" and "How is the stock market doing today?" and tell me whether the sources are named aloud and how long the wait feels.
   Commit: `Add web search with spoken sources`
 
-- [ ] **7. Where am I: Nion asks by voice when it doesn't know your location**
+- [x] **7. Where am I: Nion asks by voice when it doesn't know your location**
   Becomes usable: "What are some places to eat around me, ranked by price?" works: with location allowed, or by you saying "I'm in Brickell, Miami." If Nion has no location, it asks aloud instead of using a pop-up.
   Why now: Local suggestions are one of the demo moments, and passing location to web search is an unproven piece we want to learn about while there is still time.
   PRD ref: `prd.md > Where am I`, `prd.md > States and Boundaries`
@@ -128,4 +128,8 @@ Activity mode: not yet done
 - Phone check result: on an iPhone, through a temporary Cloudflare tunnel, speech recognition, the first-use name question, spoken answers and interrupting all worked, so the phone is a viable demo path (the spec had expected iPhones to be the weak case). It still needs a permanent secure address (hosting) for a real phone demo, the screen must stay on, and speech recognition on the phone mis-wrote "Hey Nion" in several ways, so the wake phrase now accepts them.
 - A 15 second follow-up window was added after each answer: the learner said twice that repeating "Hey Nion" before every question broke the phone-call feeling, and in the iPhone test every question was a one-shot. Added to `prd.md` (Voice conversation, Product Decisions) and `spec.md` (Decisions, Data Model), with tests.
 - A short "one moment" is spoken when an answer takes more than about 2 seconds (mostly web searches): the learner liked the idea after trying search, which takes 3 to 6 seconds. Added to `prd.md` (Current events and sources, Product Decisions) and `spec.md` (Decisions), with tests.
+- Location uses a free OpenStreetMap lookup in addition to Claude, so "near me" means the neighbourhood and not the whole city. The spec had Claude as the only outside service; testing showed Claude gets the city right but guesses neighbourhoods wrongly. Recorded in `spec.md` (External Services, Decisions) and `prd.md` (Product Decisions). The learner should know the person's coordinates go to OpenStreetMap for this lookup.
+- While testing slice 7, an echo-filter bug was found and fixed: when Nion asks "say use my location", the natural answer repeats those words and was being discarded as Nion's own voice. Short answers are now let through while Nion is waiting for one.
+- Replies are now limited to about 60 words: a real location test produced a 38 second spoken answer, and measuring showed local and news answers ran 60 to 120 words (25 to 45 seconds). Recorded in `prd.md` and `spec.md`.
+- "End the conversation, thank you" (heard as "and the conversation thank you") now ends the conversation.
 

@@ -37,7 +37,7 @@ const END_CONVERSATION =
 // "in the conversation". Those are only accepted when they are the whole thing
 // that was said, so ordinary sentences containing "in the conversation" don't end it.
 const END_CONVERSATION_MISHEARD =
-  /^\s*(?:(?:okay|ok|please|now|just)[\s,]+)*(?:and|in|n|and then|enter|entered|ended|end)\s+(?:the|this|our)?\s*conversation\s*[.!?]?\s*$/i;
+  /^\s*(?:(?:okay|ok|please|now|just)[\s,]+)*(?:and|in|n|and then|enter|entered|ended|end)\s+(?:the|this|our)?\s*conversation(?:[\s,.]*(?:thank you|thanks|please))?\s*[.!?]?\s*$/i;
 
 /**
  * Looks for a conversation command in some text.

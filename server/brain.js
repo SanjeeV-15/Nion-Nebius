@@ -17,6 +17,10 @@ const MODEL = process.env.NION_MODEL || "claude-sonnet-5-5";
 // and Claude carries on. This caps how many times, so a question can't run forever.
 const MAX_ROUNDS = 4;
 
+// What Nion writes, instead of an answer, when a question depends on where the
+// person is and it doesn't know. (See the rules in prompt.js.)
+const NEED_LOCATION = "[[NEED_LOCATION]]";
+
 /**
  * Ask Claude for Nion's reply.
  *   messages: the conversation so far, [{ role: "user" | "assistant", content: "..." }]
@@ -67,6 +71,11 @@ export async function askNion({ messages, context, location }) {
 
   // The spoken words are the text after the last search result.
   const reply = pickSpokenText(response.content);
+
+  // Nion needs to know where the person is, and doesn't. The page will ask them.
+  if (reply.includes(NEED_LOCATION)) {
+    return { needsLocation: true, reply: "", sources: [], searches, usage };
+  }
 
   return {
     reply: reply || "Sorry, I didn't catch that. Could you say it again?",

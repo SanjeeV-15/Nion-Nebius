@@ -28,7 +28,7 @@ function writtenStyleProblems(reply) {
   if (/[*#_`>|]/.test(reply)) problems.push("has markdown symbols");
   if (/^\s*(?:[-•]|\d+[.)])\s/m.test(reply)) problems.push("has a bulleted or numbered list");
   if (/https?:\/\/|www\./i.test(reply)) problems.push("has a link");
-  if (/\b(?:click|tap|scroll|look at|see below|see above|on your screen)\b/i.test(reply)) problems.push("tells the person to look at something");
+  if (/\b(?:click|tap|scroll|take a look|have a look|you can look|look at (?:the|this|that) (?:screen|list|link|page|map)|see below|see above|on your screen)\b/i.test(reply)) problems.push("tells the person to look at something");
   return problems;
 }
 
@@ -148,7 +148,7 @@ const checks = [
       if (result.searches < 1) problems.push("did not search for the news");
       if (result.sources.length < 1) problems.push("returned no sources");
       if (!NAMES_A_SOURCE.test(reply)) problems.push("does not say where the news came from");
-      if (wordCount(reply) > 130) problems.push(`too long to listen to (${wordCount(reply)} words)`);
+      if (wordCount(reply) > 85) problems.push(`too long to listen to (${wordCount(reply)} words)`);
       return problems;
     },
   },
@@ -173,12 +173,48 @@ const checks = [
         : ["does not say it couldn't find a source"];
     },
   },
+  {
+    name: "Needs a location and doesn't have one: asks for it instead of guessing",
+    question: "What are some places to eat around me, ranked by price?",
+    verify(reply, result) {
+      return result.needsLocation ? [] : ["did not ask for the person's location (it answered or guessed instead)"];
+    },
+  },
+  {
+    name: "Knows the place: five spots, cheapest first, with price and cuisine",
+    question: "What are some places to eat around me, ranked by price?",
+    place: "Brickell, Miami, Florida, US",
+    location: { city: "Miami", region: "Florida", country: "US" },
+    verify(reply, result) {
+      const problems = [];
+      if (result.needsLocation) return ["asked for a location it was already given"];
+      if (!/\b(?:inexpensive|cheap|budget|mid-range|moderate|pricey|expensive|upscale|affordable)\b|\$/i.test(reply)) problems.push("does not say the price level");
+      if (!/\b(?:cuban|latin|seafood|italian|steak|mexican|peruvian|american|japanese|greek|cafe|bakery|pizza|burger|sushi|bistro|restaurant)\b/i.test(reply)) problems.push("does not say the cuisine");
+      if (/\b(?:sixth|seventh|eighth)\b/i.test(reply)) problems.push("goes past a fifth place");
+      if (!offersMore(reply)) problems.push("does not end by offering more or narrowing down");
+      if (result.sources.length < 1) problems.push("returned no sources");
+      if (wordCount(reply) > 85) problems.push(`too long to listen to (${wordCount(reply)} words, over 30 seconds)`);
+      return problems;
+    },
+  },
+  {
+    name: "A question that doesn't depend on location: answers without asking where you are",
+    question: "How many hearts does an octopus have?",
+    verify(reply, result) {
+      if (result.needsLocation) return ["asked for a location it did not need"];
+      return /\b(?:three|3)\b/i.test(reply) ? [] : ["does not say three"];
+    },
+  },
 ];
 
 let failures = 0;
 for (const check of checks) {
   const started = Date.now();
-  const result = await askNion({ messages: [{ role: "user", content: check.question }], context });
+  const result = await askNion({
+    messages: [{ role: "user", content: check.question }],
+    context: { ...context, place: check.place },
+    location: check.location,
+  });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   const { reply } = result;
   const problems = [...writtenStyleProblems(reply), ...(await check.verify(reply, result))];
@@ -186,7 +222,7 @@ for (const check of checks) {
   if (!ok) failures += 1;
   console.log(`\n${ok ? "PASS" : "FAIL"}  ${check.name}`);
   console.log(`  Asked: ${check.question.slice(0, 100)}${check.question.length > 100 ? "…" : ""}`);
-  console.log(`  Nion:  ${reply}`);
+  console.log(`  Nion:  ${result.needsLocation ? "(asked where the person is)" : reply}`);
   console.log(`  (${seconds}s, ${result.searches} search(es), ${result.sources.length} source(s)${result.sources[0] ? `, first: ${result.sources[0].title}` : ""})`);
   for (const problem of problems) console.log(`  - ${problem}`);
 }

@@ -19,6 +19,7 @@ import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName } from "./storage.js";
 import { showState } from "./ui.js";
+import { geolocationPermission, getDevicePosition } from "./location.js";
 
 const el = {
   start: document.getElementById("start"),
@@ -85,6 +86,13 @@ function nextFiller() {
 }
 let messages = []; // the conversation so far, sent to Claude each time
 let nameTries = 0;
+
+// Where the person is, once we know. It is remembered until the page is closed,
+// so Nion doesn't ask again. `pending` is the question that was waiting for a
+// location, asked again as soon as we have one.
+const known = { place: null };
+let pending = null;
+let placeTries = 0;
 let questionTimer = null;
 
 // Interrupting: every spoken line or question gets a "turn" number. If you
@@ -106,7 +114,9 @@ function statusText() {
       if (session.followUp) return "Go ahead, I'm still listening for a follow-up.";
       return "Waiting. Say “Hey Nion.”";
     case "listening":
-      return session.awaiting === "name" ? "Listening for your name…" : "Listening…";
+      if (session.awaiting === "name") return "Listening for your name…";
+      if (session.awaiting === "place") return "Listening for where you are…";
+      return "Listening…";
     case "thinking": return "Thinking…";
     case "speaking": return "Speaking…";
   }
@@ -227,8 +237,15 @@ function handleHeard(text) {
   lastInterim = "";
   trace("final", `“${text}” (state ${state}, conversation ${session.active ? "on" : "off"}, awaiting ${session.awaiting ?? "nothing"})`);
 
+  // When Nion has just asked you something (your name, where you are), a short
+  // answer is expected. It may repeat words from the question ("use my location"),
+  // so it must not be mistaken for Nion's own voice. Only a long phrase that is
+  // mostly Nion's words is treated as an echo then.
+  const expectingAnswer = session.awaiting === "name" || session.awaiting === "place";
+  const shortAnswer = expectingAnswer && text.split(/\s+/).filter(Boolean).length < 6;
+
   // Nion's own voice, coming back through the microphone, is not you talking.
-  if (Date.now() < echo.until) {
+  if (Date.now() < echo.until && !shortAnswer) {
     if (isEcho(text, echo.text)) {
       trace("ignored", "Nion's own voice");
       return;
@@ -256,6 +273,15 @@ function handleHeard(text) {
 
     case "nameRetry":
       return retryName();
+
+    case "setPlace":
+      return rememberPlace(action.place);
+
+    case "useDeviceLocation":
+      return useDeviceLocation();
+
+    case "placeRetry":
+      return retryPlace();
 
     case "awaitQuestion":
       armQuestionWait();
@@ -297,6 +323,62 @@ async function retryName() {
   await say("Sorry, I didn't catch your name. What should I call you?", { then: "listening" });
 }
 
+// A question needs to know where the person is, and we don't. Ask out loud.
+async function askForLocation(question, oneShot, lookupFailed = false) {
+  pending = { question, oneShot };
+  placeTries = 0;
+
+  // If the person already allowed location for this site, just use it quietly.
+  if (!lookupFailed && (await geolocationPermission()) === "granted") return useDeviceLocation();
+
+  session.awaiting = "place";
+  await say(
+    lookupFailed
+      ? "I couldn't work out where that is. Just tell me which city you're in."
+      : "I can't tell where you are yet. You can say “use my location” and allow it when asked, or just tell me where you are.",
+    { then: "listening" }
+  );
+}
+
+// The person said where they are: remember it and ask the waiting question again.
+async function rememberPlace(place) {
+  known.place = place;
+  session.awaiting = null;
+  const waiting = pending;
+  pending = null;
+  if (waiting) return ask(waiting.question, waiting.oneShot);
+  await say(`Okay, I'll remember you're in ${place}.`);
+}
+
+// The person said to use their device's location.
+async function useDeviceLocation() {
+  session.awaiting = null;
+  if (!pending) return;
+  setState("thinking");
+  try {
+    const gps = await getDevicePosition();
+    const waiting = pending;
+    pending = null;
+    return ask(waiting.question, waiting.oneShot, gps);
+  } catch (error) {
+    trace("location", `couldn't get it: ${error?.message ?? error}`);
+    session.awaiting = "place";
+    placeTries = 0;
+    await say("I couldn't get your location. Just tell me which city you're in.", { then: "listening" });
+  }
+}
+
+async function retryPlace() {
+  placeTries += 1;
+  if (placeTries >= 2) {
+    session.awaiting = null;
+    pending = null;
+    placeTries = 0;
+    return say("No problem, we can skip the location.");
+  }
+  await say("Sorry, I didn't catch that. Which city are you in?", { then: "listening" });
+}
+
 // The backup button: starts or ends a conversation without needing the wake phrase.
 function refreshConvoButton() {
   el.convo.textContent = session.active ? "End conversation" : "Start conversation";
@@ -314,6 +396,7 @@ async function startConversation() {
 }
 
 async function endConversation() {
+  pending = null;
   clearTimeout(followUpTimer);
   session.followUp = false;
   session.active = false;
@@ -342,7 +425,7 @@ function currentContext(isNewConversation) {
   };
 }
 
-async function ask(question, oneShot) {
+async function ask(question, oneShot, gps) {
   const mine = ++turn;
   setState("thinking");
   showProblem("");
@@ -378,10 +461,12 @@ async function ask(question, oneShot) {
         // In a started conversation Nion has already greeted you, so only a
         // one-shot question counts as "new" (and gets a greeting by name).
         context: currentContext(oneShot),
+        // Fresh GPS numbers, or the place we already know, or nothing.
+        location: gps ?? (known.place ? { text: known.place } : undefined),
       }),
     });
     if (!response.ok) throw new Error(`Server said ${response.status}`);
-    const { reply } = await response.json();
+    const data = await response.json();
 
     clearTimeout(fillerTimer);
     await fillerDone; // let "one moment" finish before the answer starts
@@ -390,6 +475,15 @@ async function ask(question, oneShot) {
       thread.pop(); // you interrupted while Claude was answering: drop that question
       return;
     }
+
+    // The question depends on where the person is, and we don't know yet.
+    if (data.needsLocation) {
+      thread.pop(); // it'll be asked again once we know
+      return askForLocation(question, oneShot, data.locationFailed);
+    }
+
+    const { reply } = data;
+    if (data.place) known.place = data.place; // worked out from GPS: remember it
     thread.push({ role: "assistant", content: reply });
     const finished = await say(reply);
     // After an answer, leave the follow-up window open for a moment.

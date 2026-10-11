@@ -46,6 +46,25 @@ class FakeRecognition {
 
 let storage, elements, spoken, pending, fetches;
 
+// A pretend location feature. Tests set what the browser says about permission,
+// and whether getting the position works.
+let locationPermission = "prompt"; // "granted" | "denied" | "prompt"
+let locationWorks = true;
+let locationRequests = 0;
+Object.defineProperty(globalThis, "navigator", {
+  configurable: true,
+  value: {
+    permissions: { query: async () => ({ state: locationPermission }) },
+    geolocation: {
+      getCurrentPosition(success, failure) {
+        locationRequests += 1;
+        if (locationWorks) success({ coords: { latitude: 25.7617, longitude: -80.1918 } });
+        else failure(new Error("User denied Geolocation"));
+      },
+    },
+  },
+});
+
 globalThis.window = globalThis;
 globalThis.SpeechRecognition = FakeRecognition;
 globalThis.SpeechSynthesisUtterance = class {
@@ -72,10 +91,13 @@ globalThis.localStorage = {
 };
 globalThis.fetch = (url, options) =>
   new Promise((resolve, reject) => {
+    const respond = (data) => resolve({ ok: true, json: async () => data });
     const call = {
       body: JSON.parse(options.body),
       aborted: false,
-      reply: (text) => resolve({ ok: true, json: async () => ({ reply: text }) }),
+      reply: (text) => respond({ reply: text }),
+      respond,
+      needLocation: () => respond({ needsLocation: true }),
     };
     options.signal?.addEventListener("abort", () => {
       call.aborted = true;
@@ -108,6 +130,9 @@ async function startApp({ name } = {}) {
   spoken = [];
   pending = [];
   fetches = [];
+  locationPermission = "prompt";
+  locationWorks = true;
+  locationRequests = 0;
   globalThis.location = { search: "" };
   globalThis.document = { getElementById: (id) => (elements[id] ??= makeElement()) };
   // A fresh copy of the app each time (the ?number makes Node load it again).
@@ -357,4 +382,100 @@ test("interrupting during 'one moment' cancels the request", async () => {
   await hear("wait actually", { final: false });
   assert.equal(fetches[0].aborted, true);
   assert.equal(pending.length, 0, "the 'one moment' stopped too");
+});
+
+const PLACES_QUESTION = "hey nion what are some places to eat around me";
+
+test("a question that needs a location: Nion asks out loud, then answers once told where", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+
+  assert.match(saidSoFar(), /use my location/i);
+  assert.match(saidSoFar(), /tell me where you are/i);
+  await finishSpeaking();
+  assert.match(status(), /where you are/i);
+
+  await hear("I'm in Brickell, Miami");
+  assert.equal(fetches.length, 2, "the question was asked again");
+  assert.equal(fetches[1].body.messages.at(-1).content, "what are some places to eat around me");
+  assert.deepEqual(fetches[1].body.location, { text: "Brickell, Miami" });
+  assert.equal(fetches[1].body.messages.length, 1, "the unanswered question is not counted twice");
+
+  fetches[1].reply("Here are five places, cheapest first.");
+  await tick();
+  assert.match(saidSoFar(), /five places/);
+  await finishSpeaking();
+
+  // The place is remembered, so the next question doesn't need asking again.
+  await hear("and where is good for coffee");
+  assert.deepEqual(fetches[2].body.location, { text: "Brickell, Miami" });
+});
+
+test("saying 'use my location' shares the device location, and the place it worked out is remembered", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+  await finishSpeaking();
+
+  await hear("use my location");
+  await tick();
+  assert.equal(locationRequests, 1);
+  assert.equal(fetches.length, 2);
+  assert.deepEqual(fetches[1].body.location, { lat: 25.7617, lon: -80.1918 });
+
+  fetches[1].respond({ reply: "Here are five places.", place: "Brickell, Miami, Florida, US" });
+  await tick();
+  await finishSpeaking();
+
+  await hear("and where is good for coffee");
+  assert.deepEqual(fetches[2].body.location, { text: "Brickell, Miami, Florida, US" });
+});
+
+test("if the person has already allowed location, Nion just uses it without asking", async () => {
+  await startApp({ name: "Sanjeev" });
+  locationPermission = "granted";
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+
+  assert.equal(locationRequests, 1);
+  assert.equal(fetches.length, 2);
+  assert.deepEqual(fetches[1].body.location, { lat: 25.7617, lon: -80.1918 });
+  assert.doesNotMatch(saidSoFar(), /use my location/i, "it did not ask out loud");
+});
+
+test("if location is denied, Nion asks them to say where they are instead", async () => {
+  await startApp({ name: "Sanjeev" });
+  locationWorks = false;
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+  await finishSpeaking();
+
+  await hear("use my location");
+  await tick();
+  assert.match(saidSoFar(), /couldn't get your location/i);
+  await finishSpeaking();
+
+  await hear("Denver");
+  assert.deepEqual(fetches[1].body.location, { text: "Denver" });
+});
+
+test("after two answers that aren't a place, Nion gives up on the location", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+  await finishSpeaking();
+
+  await hear("what time is it");
+  assert.match(saidSoFar(), /Which city are you in/);
+  await finishSpeaking();
+
+  await hear("what time is it");
+  assert.match(saidSoFar(), /skip the location/);
+  assert.equal(fetches.length, 1, "the waiting question was dropped");
 });

@@ -6,13 +6,17 @@
 //   active:   true while a conversation is running ("Hey Nion, let's start a conversation")
 //   followUp: true during the short window after Nion answers, when you can ask
 //             a follow-up without saying "Hey Nion" again
-//   awaiting: null, "name" (Nion just asked for your name) or "question"
-//             (you said only "Hey Nion" and the next thing you say is the question)
+//   awaiting: null, "name" (Nion just asked for your name), "place" (Nion just asked
+//             where you are) or "question" (you said only "Hey Nion" and the next
+//             thing you say is the question)
 //
 // The decision is one of:
 //   { type: "ignore" }                     not for Nion
 //   { type: "setName", name }              remember this name
 //   { type: "nameRetry" }                  that wasn't a name, ask again
+//   { type: "setPlace", place }            remember where the person is
+//   { type: "useDeviceLocation" }          share the device's location
+//   { type: "placeRetry" }                 that wasn't a place, ask again
 //   { type: "start" }                      begin a conversation
 //   { type: "end" }                        end the conversation
 //   { type: "awaitQuestion" }              heard only "Hey Nion"
@@ -20,6 +24,7 @@
 
 import { parseUtterance, detectCommand } from "./wake.js";
 import { extractName } from "./name.js";
+import { extractPlace, wantsDeviceLocation } from "./location.js";
 
 // Is Nion in a conversation, either a started one or the follow-up window after an answer?
 function isOpen(session) {
@@ -48,6 +53,14 @@ export function decide(session, text) {
   if (session.awaiting === "name") {
     const name = extractName(heard, { asked: true });
     return name ? { type: "setName", name } : { type: "nameRetry" };
+  }
+
+  // Nion just asked where you are: say a place, or say to use your device's location.
+  if (session.awaiting === "place") {
+    if (detectCommand(heard) === "end") return { type: "end" };
+    if (wantsDeviceLocation(heard)) return { type: "useDeviceLocation" };
+    const place = extractPlace(heard, { asked: true });
+    return place ? { type: "setPlace", place } : { type: "placeRetry" };
   }
 
   // In a conversation, or in the follow-up window after an answer, you don't
