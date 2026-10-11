@@ -7,12 +7,33 @@ import assert from "node:assert/strict";
 // --- Pretend browser pieces ---------------------------------------------------
 
 const realSetTimeout = globalThis.setTimeout;
-// Let timers not hold the test process open (the app waits up to 8 seconds in places).
+const realClearTimeout = globalThis.clearTimeout;
+// The app waits in places (8 seconds for a question, 15 for a follow-up). These
+// timers don't hold the test process open, and a test can fire one on demand.
+const scheduled = new Set();
 globalThis.setTimeout = (fn, ms, ...args) => {
-  const timer = realSetTimeout(fn, ms, ...args);
-  timer.unref();
-  return timer;
+  const entry = { fn, ms };
+  entry.timer = realSetTimeout(() => {
+    scheduled.delete(entry);
+    fn(...args);
+  }, ms);
+  entry.timer.unref();
+  scheduled.add(entry);
+  return entry.timer;
 };
+globalThis.clearTimeout = (timer) => {
+  for (const entry of scheduled) if (entry.timer === timer) scheduled.delete(entry);
+  realClearTimeout(timer);
+};
+// Pretend `ms` milliseconds have passed for any timer waiting that long.
+function firePending(ms) {
+  for (const entry of [...scheduled]) {
+    if (entry.ms !== ms) continue;
+    scheduled.delete(entry);
+    realClearTimeout(entry.timer);
+    entry.fn();
+  }
+}
 const tick = () => new Promise((resolve) => realSetTimeout(resolve, 5));
 
 class FakeRecognition {
@@ -211,4 +232,49 @@ test("in a conversation, follow-ups need no wake phrase and it can be ended by v
   // Outside a conversation, speech without the wake phrase is ignored again.
   await hear("what time is it");
   assert.equal(fetches.length, 2);
+});
+
+test("after an answer there is a 15 second window for a follow-up with no wake phrase", async () => {
+  await startApp({ name: "Sanjeev" });
+
+  await hear("hey nion what is the time in Denver");
+  fetches[0].reply("Hey Sanjeev, it's one seventeen in Denver right now.");
+  await tick();
+  await finishSpeaking();
+  assert.match(status(), /follow-up/i);
+
+  // No "Hey Nion" this time, and Claude gets the earlier turns too.
+  await hear("and in Mumbai");
+  assert.equal(fetches.length, 2);
+  assert.equal(fetches[1].body.messages.length, 3);
+  assert.equal(fetches[1].body.context.isNewConversation, false, "no second greeting");
+  fetches[1].reply("It's just before one in the morning.");
+  await tick();
+  await finishSpeaking();
+
+  // After 15 quiet seconds the window closes and the wake phrase is needed again.
+  firePending(15000);
+  await tick();
+  assert.match(status(), /Waiting\. Say/);
+  await hear("what time is it");
+  assert.equal(fetches.length, 2, "ignored, because the window had closed");
+
+  // And a fresh question after that is a new conversation with a greeting.
+  await hear("hey nion what is the date");
+  assert.equal(fetches.length, 3);
+  assert.equal(fetches[2].body.context.isNewConversation, true);
+  assert.equal(fetches[2].body.messages.length, 1, "starts again with no earlier turns");
+});
+
+test("talking during the window keeps it open", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the time in Denver");
+  fetches[0].reply("It's one seventeen in Denver right now.");
+  await tick();
+  await finishSpeaking();
+
+  const waitingForClose = () => [...scheduled].filter((e) => e.ms === 15000).length;
+  assert.equal(waitingForClose(), 1, "one 15 second timer is running");
+  await hear("and in", { final: false }); // you start talking
+  assert.equal(waitingForClose(), 1, "restarted, not duplicated");
 });

@@ -144,3 +144,31 @@ test("ordinary sentences that start with those sounds do not wake Nion", () => {
     assert.equal(parseUtterance(heard).woke, false, `should not wake: "${heard}"`);
   }
 });
+
+const inFollowUp = { active: false, followUp: true, awaiting: null };
+
+test("in the follow-up window, you can ask a follow-up without the wake phrase", () => {
+  assert.deepEqual(decide(inFollowUp, "and what about tomorrow"), {
+    type: "ask",
+    question: "and what about tomorrow",
+    oneShot: false,
+  });
+});
+
+test("in the follow-up window, the wake phrase is still fine", () => {
+  assert.deepEqual(decide(inFollowUp, "hey nion and in Mumbai"), {
+    type: "ask",
+    question: "and in Mumbai",
+    oneShot: false,
+  });
+});
+
+test("in the follow-up window, you can still end it or start a full conversation", () => {
+  assert.deepEqual(decide(inFollowUp, "end the conversation"), { type: "end" });
+  assert.deepEqual(decide(inFollowUp, "let's start a conversation"), { type: "start" });
+});
+
+test("once the follow-up window has closed, the wake phrase is needed again", () => {
+  const closed = { active: false, followUp: false, awaiting: null };
+  assert.deepEqual(decide(closed, "and what about tomorrow"), { type: "ignore" });
+});

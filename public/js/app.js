@@ -56,8 +56,16 @@ el.copylog.addEventListener("click", () => navigator.clipboard?.writeText(traceL
 let state = "off"; // off | waiting | listening | thinking | speaking
 const session = {
   active: false, // is a conversation running?
+  followUp: false, // is the follow-up window open? (see below)
   awaiting: null, // null | "name" | "question"
 };
+
+// After Nion answers, you can ask a follow-up for this long without saying
+// "Hey Nion" again. If you stay quiet for this long, Nion goes back to waiting
+// for the wake phrase. A shorter window means fewer accidental questions from
+// background talk; a longer one is more relaxed.
+const FOLLOW_UP_MS = 15000;
+let followUpTimer = null;
 let messages = []; // the conversation so far, sent to Claude each time
 let nameTries = 0;
 let questionTimer = null;
@@ -77,9 +85,9 @@ function statusText() {
   switch (state) {
     case "off": return "Tap the button to turn Nion on.";
     case "waiting":
-      return session.active
-        ? "In a conversation. Just talk, or say “End the conversation.”"
-        : "Waiting. Say “Hey Nion.”";
+      if (session.active) return "In a conversation. Just talk, or say “End the conversation.”";
+      if (session.followUp) return "Go ahead, I'm still listening for a follow-up.";
+      return "Waiting. Say “Hey Nion.”";
     case "listening":
       return session.awaiting === "name" ? "Listening for your name…" : "Listening…";
     case "thinking": return "Thinking…";
@@ -123,9 +131,30 @@ async function say(text, { then = "waiting" } = {}) {
   echo.until = Infinity; // its voice is coming through the speakers right now
   setState("speaking");
   await speak(text);
-  if (mine !== turn) return; // you interrupted: the new turn has taken over
+  if (mine !== turn) return false; // you interrupted: the new turn has taken over
   echo.until = Date.now() + ECHO_TAIL_MS;
   setState(then);
+  return true;
+}
+
+// Open (or restart) the follow-up window.
+function openFollowUp() {
+  if (session.active) return; // a started conversation has no time limit
+  const wasOpen = session.followUp;
+  session.followUp = true;
+  clearTimeout(followUpTimer);
+  followUpTimer = setTimeout(closeFollowUp, FOLLOW_UP_MS);
+  if (!wasOpen) trace("follow-up window", `open for ${FOLLOW_UP_MS / 1000}s`);
+  if (state === "waiting") setState("waiting"); // refresh the status line
+}
+
+function closeFollowUp() {
+  clearTimeout(followUpTimer);
+  if (!session.followUp) return;
+  session.followUp = false;
+  if (!session.active) messages = []; // that conversation is over
+  trace("follow-up window", "closed");
+  if (state === "waiting") setState("waiting");
 }
 
 // Stop whatever Nion is doing, because you started talking.
@@ -135,8 +164,8 @@ function interrupt() {
   stopSpeaking();
   abortAsk?.abort();
   echo.until = Date.now() + ECHO_TAIL_MS; // what we cut off may still arrive
-  // Outside a conversation, what you say next is treated as your question.
-  if (!session.active && session.awaiting === null) armQuestionWait();
+  // Outside a started conversation, what you say next is a follow-up to this one.
+  if (!session.active && session.awaiting === null) openFollowUp();
   setState("listening");
 }
 
@@ -153,6 +182,7 @@ function armQuestionWait() {
 // just its own voice, stop at once.
 let lastInterim = "";
 function handleInterim(text) {
+  if (session.followUp) openFollowUp(); // you are talking: keep the window open
   // Show what Chrome is hearing right now, before it has finished the phrase.
   el.heard.textContent = `Hearing: “${text}”`;
   const busy = state === "speaking" || state === "thinking";
@@ -244,6 +274,8 @@ function refreshConvoButton() {
 }
 
 async function startConversation() {
+  clearTimeout(followUpTimer);
+  session.followUp = false;
   session.active = true;
   refreshConvoButton();
   session.awaiting = null;
@@ -253,6 +285,8 @@ async function startConversation() {
 }
 
 async function endConversation() {
+  clearTimeout(followUpTimer);
+  session.followUp = false;
   session.active = false;
   refreshConvoButton();
   session.awaiting = null;
@@ -284,9 +318,10 @@ async function ask(question, oneShot) {
   setState("thinking");
   showProblem("");
 
-  // A one-shot question is its own little conversation. In a running
-  // conversation, Claude gets everything said so far.
-  const thread = oneShot ? [] : messages;
+  // A question outside any conversation starts a new one (and gets a greeting).
+  // Otherwise Claude gets everything said so far, so follow-ups make sense.
+  if (oneShot) messages = [];
+  const thread = messages;
   thread.push({ role: "user", content: question });
 
   abortAsk = new AbortController();
@@ -311,7 +346,9 @@ async function ask(question, oneShot) {
       return;
     }
     thread.push({ role: "assistant", content: reply });
-    await say(reply);
+    const finished = await say(reply);
+    // After an answer, leave the follow-up window open for a moment.
+    if (finished && !session.active) openFollowUp();
   } catch (error) {
     thread.pop(); // the question got no answer, so take it back out
     if (mine !== turn) return; // that was us cancelling because you interrupted

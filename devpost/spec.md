@@ -135,7 +135,7 @@ Files: `public/history.html`, `public/js/history.js`.
 | Conversations | Browser storage, key `nion.conversations`: a list of `{id, startedAt, turns: [{role, text, at, sources?}]}` | A turn is added after each exchange | Still there, shown in History |
 | The current conversation's messages | In memory in the page | Each turn | Gone when you close the tab (the saved copy remains in History) |
 | Location | In memory in the page: `{lat, lon}` or a spoken place | When allowed or spoken | Asked again next time |
-| Conversation mode on/off | In memory in the page | By voice command | Resets to off |
+| Conversation mode on/off, and the follow-up window | In memory in the page | By voice command; the window opens after each answer and closes after 15 quiet seconds | Resets to off |
 | API key and model name | `.env` on the laptop, read by the server | You edit it | Same |
 
 There is no database and no account.
@@ -209,6 +209,7 @@ voice-companion/
 
 ### Changed during the build
 - **Phone check passed on an iPhone.** Through a temporary secure tunnel, an iPhone ran Nion's speech recognition, name question, spoken answers and interrupting. This is better than the spec feared, so the phone stays in the plan as the headline demo, with the laptop recording as the fallback. It will need a hosted secure address; the tunnel was only for testing.
+- **A 15 second follow-up window.** Outside a started conversation, Nion stays attentive for 15 seconds after answering, so a follow-up needs no wake phrase and keeps the earlier turns. The timer restarts while the person is talking and closes after 15 quiet seconds (`FOLLOW_UP_MS` in `app.js`). Added because the learner kept having to repeat the wake phrase. Risk: nearby voices in a noisy place can be mistaken for questions while it is open.
 - **Interrupting is in, and conversation decisions are in their own file.** After the first hands-on try, the learner needed Nion to stop and listen when interrupted, so Nion keeps listening while it thinks and speaks. This replaces the earlier "stop listening while speaking" simplification. The tradeoffs: laptop speakers can feed Nion's voice back into the microphone (guarded by `echo.js`, and earphones avoid it entirely), and on an iPhone an open microphone can lower playback quality (a known browser issue), which makes the phone attempt a little more fragile.
 
 ### Learner choices

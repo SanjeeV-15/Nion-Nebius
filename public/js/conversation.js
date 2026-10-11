@@ -4,6 +4,8 @@
 //
 // `session` describes where we are:
 //   active:   true while a conversation is running ("Hey Nion, let's start a conversation")
+//   followUp: true during the short window after Nion answers, when you can ask
+//             a follow-up without saying "Hey Nion" again
 //   awaiting: null, "name" (Nion just asked for your name) or "question"
 //             (you said only "Hey Nion" and the next thing you say is the question)
 //
@@ -19,18 +21,23 @@
 import { parseUtterance, detectCommand } from "./wake.js";
 import { extractName } from "./name.js";
 
+// Is Nion in a conversation, either a started one or the follow-up window after an answer?
+function isOpen(session) {
+  return Boolean(session.active || session.followUp);
+}
+
 // What to do with words that came after the wake phrase (or, in a
 // conversation, with anything said at all).
 function decideAfterWake(question, session) {
   const command = detectCommand(question);
   if (command === "start") return session.active ? { type: "ignore" } : { type: "start" };
-  if (command === "end") return session.active ? { type: "end" } : { type: "ignore" };
+  if (command === "end") return isOpen(session) ? { type: "end" } : { type: "ignore" };
 
   const name = extractName(question);
   if (name) return { type: "setName", name };
 
   if (!question) return { type: "awaitQuestion" };
-  return { type: "ask", question, oneShot: !session.active };
+  return { type: "ask", question, oneShot: !isOpen(session) };
 }
 
 export function decide(session, text) {
@@ -43,9 +50,9 @@ export function decide(session, text) {
     return name ? { type: "setName", name } : { type: "nameRetry" };
   }
 
-  // In a conversation you don't need the wake phrase. "Hey Nion" is still
-  // allowed at the start, and is ignored if you say it.
-  if (session.active) {
+  // In a conversation, or in the follow-up window after an answer, you don't
+  // need the wake phrase. "Hey Nion" is still allowed at the start.
+  if (isOpen(session)) {
     const parsed = parseUtterance(heard);
     return decideAfterWake(parsed.woke ? parsed.question : heard, session);
   }

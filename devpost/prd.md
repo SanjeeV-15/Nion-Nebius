@@ -48,6 +48,7 @@ Navigation: Main screen to History and back. There is no other screen.
   - [ ] The state icon visibly differs for waiting, listening, thinking, and speaking.
   - [ ] Saying "Hey Nion, let's start a conversation" starts a conversation where I can keep talking without repeating "Hey Nion."
   - [ ] Saying "End the conversation" ends it, and Nion stops listening. Close variants work too (for example "goodbye" or "I'm done"), and Nion copes when Chrome mishears the phrase.
+  - [ ] After Nion answers, I can ask a follow-up within 15 seconds without saying "Hey Nion" again, and Nion remembers what we just said. After 15 quiet seconds Nion goes back to waiting for the wake phrase.
   - [ ] If I start talking while Nion is thinking or speaking, Nion stops at once and listens to me, and what I say next is treated as my new question.
 
 ### Designed for ears, not screens
@@ -119,6 +120,7 @@ Navigation: Main screen to History and back. There is no other screen.
 - **Monotone glass look.** Modern, sleek, between black and white, so state is shown by icons.
 - **History and transcripts together.** Transcripts live inside history; the person can copy them.
 - **Called Nion**, taken from the last letters of "Companion."
+- **A 15 second follow-up window after every answer.** After trying it, the learner said twice that having to say "Hey Nion" before every question broke the phone-call feeling. Nion now stays attentive for 15 seconds after answering, restarting while the person is talking, then returns to waiting for the wake phrase. Tradeoff: in a noisy place, people talking nearby could be heard as questions during the window, so it is kept short. The length is one setting that can be changed. "Start a conversation" still stays open with no time limit.
 - **A backup button starts and ends a conversation.** In testing, Chrome often wrote "Hey Nion" as "Indian" or "anyone", so the wake phrase missed. The button keeps the demo reliable; the voice commands remain the main path.
 - **Interrupting is in the first version.** After trying it, the learner found that Nion talking over them broke the "like a phone call" feeling. Nion keeps listening while it thinks and speaks and stops the moment the person talks. Tradeoff: on laptop speakers the microphone can hear Nion's own voice, so Nion filters out anything that is mostly what it is saying; earphones avoid the problem.
 - **Name asked once by voice, greeting once per conversation.** Nion asks the person's name the first time it is used. It greets them by name when a new conversation starts, not every turn, so it feels natural and not repetitive.
