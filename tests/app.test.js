@@ -174,27 +174,27 @@ test("first use: Nion asks for a name and remembers it", async () => {
   await finishSpeaking();
   assert.match(status(), /Listening for your name/);
 
-  await hear("Alex");
-  assert.equal(storage.get("nion.name"), "Alex");
-  assert.match(saidSoFar(), /Nice to meet you, Alex/);
+  await hear("Sanjeev");
+  assert.equal(storage.get("nion.name"), "Sanjeev");
+  assert.match(saidSoFar(), /Nice to meet you, Sanjeev/);
 });
 
 test("a question gets a spoken answer, greeting the person by name", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what time is it in Denver");
 
   assert.equal(fetches.length, 1);
-  assert.equal(fetches[0].body.context.userName, "Alex");
+  assert.equal(fetches[0].body.context.userName, "Sanjeev");
   assert.equal(fetches[0].body.context.isNewConversation, true);
 
-  fetches[0].reply("Hey Alex, it's one seventeen in Denver right now.");
+  fetches[0].reply("Hey Sanjeev, it's one seventeen in Denver right now.");
   await tick();
   assert.match(spoken.at(-1), /one seventeen/);
   assert.match(status(), /Speaking/);
 });
 
 test("interrupting while Nion speaks stops it and listens", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what time is it in Denver");
   fetches[0].reply("It's one seventeen in Denver right now.");
   await tick();
@@ -216,7 +216,7 @@ test("interrupting while Nion speaks stops it and listens", async () => {
 });
 
 test("interrupting while Nion is thinking cancels the request", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the weather like");
   assert.match(status(), /Thinking/);
 
@@ -232,10 +232,10 @@ test("interrupting while Nion is thinking cancels the request", async () => {
 });
 
 test("in a conversation, follow-ups need no wake phrase and it can be ended by voice", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
 
   await hear("hey nion let's start a conversation");
-  assert.match(saidSoFar(), /Hey Alex, I'm listening/);
+  assert.match(saidSoFar(), /Hey Sanjeev, I'm listening/);
   await finishSpeaking();
   assert.match(status(), /In a conversation/);
 
@@ -265,10 +265,10 @@ test("in a conversation, follow-ups need no wake phrase and it can be ended by v
 });
 
 test("after an answer there is a 15 second window for a follow-up with no wake phrase", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
 
   await hear("hey nion what is the time in Denver");
-  fetches[0].reply("Hey Alex, it's one seventeen in Denver right now.");
+  fetches[0].reply("Hey Sanjeev, it's one seventeen in Denver right now.");
   await tick();
   await finishSpeaking();
   assert.match(status(), /follow-up/i);
@@ -297,7 +297,7 @@ test("after an answer there is a 15 second window for a follow-up with no wake p
 });
 
 test("talking during the window keeps it open", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the time in Denver");
   fetches[0].reply("It's one seventeen in Denver right now.");
   await tick();
@@ -310,7 +310,7 @@ test("talking during the window keeps it open", async () => {
 });
 
 test("the listening icon shows as soon as someone talks to Nion, and goes away if it wasn't for Nion", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   assert.match(status(), /Waiting\. Say/);
 
   // Chatter that isn't for Nion does not flash the listening icon.
@@ -328,7 +328,7 @@ test("the listening icon shows as soon as someone talks to Nion, and goes away i
 });
 
 test("in the follow-up window, any speech shows the listening icon", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the time in Denver");
   fetches[0].reply("It's one seventeen in Denver right now.");
   await tick();
@@ -342,7 +342,7 @@ test("in the follow-up window, any speech shows the listening icon", async () =>
 const FILLER = /One moment|Let me check|Checking on that|Just a second/;
 
 test("a slow answer gets a short 'one moment' first, and the answer waits for it to finish", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   assert.equal(fetches.length, 1);
 
@@ -362,7 +362,7 @@ test("a slow answer gets a short 'one moment' first, and the answer waits for it
 });
 
 test("a quick answer gets no 'one moment'", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the capital of Australia");
   fetches[0].reply("It's Canberra.");
   await tick();
@@ -376,7 +376,7 @@ test("a quick answer gets no 'one moment'", async () => {
 });
 
 test("interrupting during 'one moment' cancels the request", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   firePending(2200);
   await tick();
@@ -390,7 +390,7 @@ test("interrupting during 'one moment' cancels the request", async () => {
 const PLACES_QUESTION = "hey nion what are some places to eat around me";
 
 test("a question that needs a location: Nion asks out loud, then answers once told where", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear(PLACES_QUESTION);
   fetches[0].needLocation();
   await tick();
@@ -417,7 +417,7 @@ test("a question that needs a location: Nion asks out loud, then answers once to
 });
 
 test("saying 'use my location' shares the device location, and the place it worked out is remembered", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear(PLACES_QUESTION);
   fetches[0].needLocation();
   await tick();
@@ -438,7 +438,7 @@ test("saying 'use my location' shares the device location, and the place it work
 });
 
 test("if the person has already allowed location, Nion just uses it without asking", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   locationPermission = "granted";
   await hear(PLACES_QUESTION);
   fetches[0].needLocation();
@@ -451,7 +451,7 @@ test("if the person has already allowed location, Nion just uses it without aski
 });
 
 test("if location is denied, Nion asks them to say where they are instead", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   locationWorks = false;
   await hear(PLACES_QUESTION);
   fetches[0].needLocation();
@@ -468,7 +468,7 @@ test("if location is denied, Nion asks them to say where they are instead", asyn
 });
 
 test("after two answers that aren't a place, Nion gives up on the location", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear(PLACES_QUESTION);
   fetches[0].needLocation();
   await tick();
@@ -486,7 +486,7 @@ test("after two answers that aren't a place, Nion gives up on the location", asy
 const saved = () => JSON.parse(storage.get("nion.conversations") ?? "[]");
 
 test("answered questions are saved for History; follow-ups join the same conversation", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   assert.equal(saved().length, 0);
 
   await hear("hey nion what is the time in Denver");
@@ -516,7 +516,7 @@ test("answered questions are saved for History; follow-ups join the same convers
 });
 
 test("a question that was interrupted before it was answered is not saved", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   await hear("wait actually", { final: false });
   assert.equal(fetches[0].aborted, true);
@@ -524,7 +524,7 @@ test("a question that was interrupted before it was answered is not saved", asyn
 });
 
 test("when the server has a problem, Nion says so out loud and nothing is saved", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   fetches[0].serverError();
   await tick();
@@ -537,7 +537,7 @@ test("when the server has a problem, Nion says so out loud and nothing is saved"
 });
 
 test("an answer that takes more than 25 seconds is given up on, out loud", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   assert.match(status(), /Thinking/);
 
@@ -548,7 +548,7 @@ test("an answer that takes more than 25 seconds is given up on, out loud", async
 });
 
 test("a 'one moment' that was already being spoken finishes before the trouble message", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   firePending(2200);
   await tick();
@@ -563,7 +563,7 @@ test("a 'one moment' that was already being spoken finishes before the trouble m
 });
 
 test("when the API credit has run out, the screen says so, and Nion still only says the short message", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   fetches[0].serverError("credit");
   await tick();
@@ -575,7 +575,7 @@ test("when the API credit has run out, the screen says so, and Nion still only s
 });
 
 test("a rejected API key is explained on screen", async () => {
-  await startApp({ name: "Alex" });
+  await startApp({ name: "Sanjeev" });
   await hear("hey nion what is the latest news");
   fetches[0].serverError("key");
   await tick();

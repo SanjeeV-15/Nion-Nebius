@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { buildSystemPrompt } from "../server/prompt.js";
 
 test("a new conversation tells Nion to greet the person by name", () => {
-  const prompt = buildSystemPrompt({ userName: "Alex", isNewConversation: true });
-  assert.match(prompt, /name is Alex/);
+  const prompt = buildSystemPrompt({ userName: "Sanjeev", isNewConversation: true });
+  assert.match(prompt, /name is Sanjeev/);
   assert.match(prompt, /first reply of a new conversation/);
-  assert.match(prompt, /Hey Alex,/);
+  assert.match(prompt, /Hey Sanjeev,/);
 });
 
 test("later replies in the same conversation do not greet again", () => {
-  const prompt = buildSystemPrompt({ userName: "Alex", isNewConversation: false });
+  const prompt = buildSystemPrompt({ userName: "Sanjeev", isNewConversation: false });
   assert.match(prompt, /already greeted/);
   assert.doesNotMatch(prompt, /first reply of a new conversation/);
 });

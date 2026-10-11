@@ -1,7 +1,7 @@
 // Works out a person's name from what they said out loud.
 //
-// People say it in different ways: "Alex", "my name is Alex", "call me
-// Alex". We only keep what looks like a short name (one to three words made
+// People say it in different ways: "Sanjeev", "my name is Sanjeev", "call me
+// Sanjeev". We only keep what looks like a short name (one to three words made
 // of letters), so the name is safe to use in Nion's instructions later.
 
 const INTRO =
@@ -26,7 +26,7 @@ function toName(candidate) {
     .replace(/[.,!?]/g, " ")
     .split(/\s+/)
     .filter(Boolean)
-    // drop polite words at the end: "Alex please"
+    // drop polite words at the end: "Sanjeev please"
     .filter((w, i, all) => !(i > 0 && ["please", "thanks"].includes(w.toLowerCase())));
 
   if (words.length === 0 || words.length > 3) return null;
@@ -38,7 +38,7 @@ function toName(candidate) {
 /**
  * Find a name in what was said.
  *   asked: true when Nion has just asked "What should I call you?", so a bare
- *          "Alex" counts and so does "I'm Alex".
+ *          "Sanjeev" counts and so does "I'm Sanjeev".
  * Returns the name, or null if no name was found.
  */
 export function extractName(text, { asked = false } = {}) {
