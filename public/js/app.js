@@ -14,7 +14,7 @@
 
 import { decide } from "./conversation.js";
 import { parseUtterance } from "./wake.js";
-import { isEcho, isInterruption, stripLeadingEcho } from "./echo.js";
+import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
@@ -111,6 +111,11 @@ let nameTries = 0;
 // location, asked again as soon as we have one.
 const known = { place: null };
 let pending = null;
+// True while the browser's "Allow location?" pop-up is open. Anything heard then is
+// Nion's own voice or the person talking to the pop-up, not a new question.
+let locating = false;
+// The last "one moment" Nion said, so it is never mistaken for the person.
+const filler = { text: "", until: 0 };
 let placeTries = 0;
 let questionTimer = null;
 
@@ -123,6 +128,9 @@ let abortAsk = null; // lets us cancel a question that is still waiting for Clau
 // the microphone. Chrome reports words a moment late, so this keeps going for a
 // few seconds after Nion stops.
 const ECHO_TAIL_MS = 3500;
+// A "one moment" is only a second or two long. If the voice never reports that it
+// finished, the real answer must not wait for it for ever.
+const FILLER_WAIT_MS = 3000;
 const echo = { text: "", until: 0 };
 
 function statusText() {
@@ -211,6 +219,10 @@ function closeFollowUp() {
 function interrupt() {
   trace("interrupt", `was ${state}`);
   turn += 1;
+  if (locating) {
+    locating = false; // stopped while the pop-up was open: forget the waiting question
+    pending = null;
+  }
   stopSpeaking();
   abortAsk?.abort();
   echo.until = Date.now() + ECHO_TAIL_MS; // what we cut off may still arrive
@@ -236,6 +248,7 @@ function handleInterim(text) {
   // Show what Chrome is hearing right now, before it has finished the phrase.
   if (debugOn) el.heard.textContent = `Hearing: “${text}”`;
   const busy = state === "speaking" || state === "thinking";
+  if (locating) return; // waiting for the browser's location pop-up
   const interrupting = busy && isInterruption(text, echo.text);
   if (text !== lastInterim) {
     lastInterim = text;
@@ -263,6 +276,21 @@ function handleHeard(text) {
   // answer is expected. It may repeat words from the question ("use my location"),
   // so it must not be mistaken for Nion's own voice. Only a long phrase that is
   // mostly Nion's words is treated as an echo then.
+  if (locating) {
+    trace("ignored", "waiting for the location pop-up (press Escape to cancel)");
+    return;
+  }
+
+  // Chrome can write Nion's "one moment" into the same phrase as the person's words.
+  if (Date.now() < filler.until) {
+    const rest = stripPhrase(text, filler.text);
+    if (rest !== text) {
+      trace("trimmed", `“${rest}” (took out Nion's "${filler.text}")`);
+      if (!rest) return;
+      text = rest;
+    }
+  }
+
   const expectingAnswer = session.awaiting === "name" || session.awaiting === "place";
   const shortAnswer = expectingAnswer && text.split(/\s+/).filter(Boolean).length < 6;
 
@@ -385,13 +413,19 @@ async function rememberPlace(place) {
 async function useDeviceLocation() {
   session.awaiting = null;
   if (!pending) return;
+  const mine = ++turn;
+  locating = true;
   setState("thinking");
   try {
     const gps = await getDevicePosition();
+    if (mine !== turn) return; // stopped while the pop-up was open
+    locating = false;
     const waiting = pending;
     pending = null;
     return ask(waiting.question, waiting.oneShot, gps);
   } catch (error) {
+    if (mine !== turn) return;
+    locating = false;
     trace("location", `couldn't get it: ${error?.message ?? error}`);
     session.awaiting = "place";
     placeTries = 0;
@@ -475,6 +509,9 @@ async function ask(question, oneShot, gps) {
   const controller = new AbortController();
   abortAsk = controller;
   const askTimeout = setTimeout(() => controller.abort(), ASK_TIMEOUT_MS);
+  // Waits for a "one moment" to finish, but not for ever.
+  const fillerFinished = () =>
+    Promise.race([fillerDone, new Promise((resolve) => setTimeout(resolve, FILLER_WAIT_MS))]);
 
   // If the answer is slow, say a short "one moment". The real answer then waits
   // until that has finished, so the two never overlap.
@@ -485,7 +522,11 @@ async function ask(question, oneShot, gps) {
     trace("filler", phrase);
     echo.text = phrase;
     echo.until = Infinity;
-    fillerDone = speak(phrase);
+    filler.text = phrase;
+    filler.until = Infinity;
+    fillerDone = speak(phrase).then(() => {
+      filler.until = Date.now() + ECHO_TAIL_MS;
+    });
   }, FILLER_AFTER_MS);
 
   try {
@@ -511,7 +552,7 @@ async function ask(question, oneShot, gps) {
 
     clearTimeout(askTimeout);
     clearTimeout(fillerTimer);
-    await fillerDone; // let "one moment" finish before the answer starts
+    await fillerFinished(); // let "one moment" finish before the answer starts
 
     if (mine !== turn) {
       thread.pop(); // you interrupted while Claude was answering: drop that question
@@ -543,7 +584,7 @@ async function ask(question, oneShot, gps) {
       PROBLEM_TEXT[error?.reason] ??
         "Nion couldn't get an answer. If this keeps happening, check the terminal where npm start is running."
     );
-    await fillerDone; // let a "one moment" finish before saying this
+    await fillerFinished(); // let a "one moment" finish before saying this
     await say(TROUBLE);
   }
 }

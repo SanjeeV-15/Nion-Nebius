@@ -52,6 +52,7 @@ let pageHandlers = {}; // things the page listens for, such as a key press
 let locationPermission = "prompt"; // "granted" | "denied" | "prompt"
 let locationWorks = true;
 let locationRequests = 0;
+let locationCallbacks = null; // set while the pretend browser is waiting for the person to click Allow
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: {
@@ -59,7 +60,8 @@ Object.defineProperty(globalThis, "navigator", {
     geolocation: {
       getCurrentPosition(success, failure) {
         locationRequests += 1;
-        if (locationWorks) success({ coords: { latitude: 25.7617, longitude: -80.1918 } });
+        if (locationWorks === "later") locationCallbacks = { success, failure };
+        else if (locationWorks) success({ coords: { latitude: 25.7617, longitude: -80.1918 } });
         else failure(new Error("User denied Geolocation"));
       },
     },
@@ -127,6 +129,8 @@ function makeElement() {
 
 let appVersion = 0;
 async function startApp({ name, search = "" } = {}) {
+  for (const entry of scheduled) realClearTimeout(entry.timer); // timers of an earlier test
+  scheduled.clear();
   storage = new Map();
   if (name) storage.set("nion.name", name);
   elements = {};
@@ -137,6 +141,7 @@ async function startApp({ name, search = "" } = {}) {
   locationPermission = "prompt";
   locationWorks = true;
   locationRequests = 0;
+  locationCallbacks = null;
   globalThis.location = { search };
   globalThis.document = {
     getElementById: (id) => (elements[id] ??= makeElement()),
@@ -659,4 +664,80 @@ test("a single stray word heard while Nion is talking does not cut it off", asyn
   await hear("what about Mumbai");
   assert.equal(pending.length, 0, "stopped");
   assert.equal(fetches.length, 2);
+});
+
+// The person clicks "Allow" in the browser's location pop-up.
+const clickAllow = () => locationCallbacks.success({ coords: { latitude: 25.7617, longitude: -80.1918 } });
+
+test("while the browser is asking for location permission, whatever is heard is ignored and the question is asked once", async () => {
+  await startApp({ name: "Sanjeev" });
+  locationWorks = "later"; // the pop-up is open and the person hasn't clicked yet
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+  await finishSpeaking();
+
+  await hear("use my location");
+  await tick();
+  assert.equal(locationRequests, 1);
+
+  // The person talks while the pop-up is open (or Nion's own voice is heard).
+  await hear("I turned on my location");
+  await hear("sure one moment");
+  assert.equal(fetches.length, 1, "nothing new was asked while waiting for the pop-up");
+
+  clickAllow();
+  await tick();
+  assert.equal(fetches.length, 2, "the waiting question was asked, once");
+  assert.deepEqual(fetches[1].body.location, { lat: 25.7617, lon: -80.1918 });
+});
+
+test("stopping Nion while the location pop-up is open drops the question", async () => {
+  await startApp({ name: "Sanjeev" });
+  locationWorks = "later";
+  await hear(PLACES_QUESTION);
+  fetches[0].needLocation();
+  await tick();
+  await finishSpeaking();
+  await hear("use my location");
+  await tick();
+
+  pageHandlers.keydown({ key: "Escape" });
+  await tick();
+  clickAllow();
+  await tick();
+  assert.equal(fetches.length, 1, "the question was dropped, not asked after all");
+});
+
+test("an answer is not held up for ever if the 'one moment' never finishes", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  firePending(2200);
+  await tick();
+  assert.match(saidSoFar(), FILLER);
+  // (the pretend voice never reports that "one moment" ended)
+
+  fetches[0].reply("According to Reuters, talks resumed.");
+  await tick();
+  assert.doesNotMatch(saidSoFar(), /Reuters/, "still giving the filler a moment to finish");
+
+  firePending(3000); // it has waited long enough
+  await tick();
+  assert.match(saidSoFar(), /According to Reuters/);
+});
+
+test("Nion's own 'one moment', written into the same phrase as yours, is not taken as input", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the latest news");
+  firePending(2200);
+  await tick();
+  const filler = saidSoFar().match(FILLER)[0];
+
+  await hear(`${filler.toLowerCase()} sure`);
+  assert.equal(fetches.length, 1, "no new question, and the waiting one was not cancelled");
+  fetches[0].reply("According to Reuters, talks resumed.");
+  await tick();
+  await finishSpeaking();
+  await tick();
+  assert.match(saidSoFar(), /According to Reuters/);
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isEcho, isInterruption, stripLeadingEcho } from "../public/js/echo.js";
+import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "../public/js/echo.js";
 import { detectCommand } from "../public/js/wake.js";
 
 const spoken = "It's 1:17 in the afternoon in Denver right now.";
@@ -102,4 +102,11 @@ test("'end the conversation, thank you' still ends it when Chrome mishears the s
   assert.equal(detectCommand("okay in the conversation please"), "end");
   // a real sentence is still not an end command
   assert.equal(detectCommand("and the conversation went really well thank you"), null);
+});
+
+test("stripPhrase takes Nion's phrase out of what was heard, wherever it is", () => {
+  assert.equal(stripPhrase("use my location one moment", "One moment."), "use my location");
+  assert.equal(stripPhrase("one moment what time is it", "One moment."), "what time is it");
+  assert.equal(stripPhrase("one moment", "One moment."), "");
+  assert.equal(stripPhrase("what time is it", "One moment."), "what time is it");
 });

@@ -84,3 +84,21 @@ export function stripLeadingEcho(heard, spoken) {
   // Only trim when it's a real run of Nion's words, not a couple of common words.
   return skip >= 3 ? tokens.slice(skip).join(" ") : tokens.join(" ");
 }
+
+/**
+ * Takes a phrase Nion said ("One moment.") out of what was heard, wherever it sits
+ * ("use my location one moment"). Returns what is left, or "" if nothing is.
+ */
+export function stripPhrase(heard, phrase) {
+  const target = words(phrase);
+  const tokens = String(heard ?? "").trim().split(/\s+/).filter(Boolean);
+  if (target.length === 0) return tokens.join(" ");
+  const kept = [];
+  for (let i = 0; i < tokens.length; ) {
+    const run = tokens.slice(i, i + target.length);
+    const same = run.length === target.length && run.every((t, j) => sameWord(words(t)[0] ?? "", target[j]));
+    if (same) i += target.length;
+    else kept.push(tokens[i++]);
+  }
+  return kept.join(" ");
+}
