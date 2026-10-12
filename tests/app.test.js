@@ -74,7 +74,7 @@ globalThis.SpeechSynthesisUtterance = class {
   }
 };
 globalThis.speechSynthesis = {
-  getVoices: () => [],
+  getVoices: () => [{ name: "Samantha", lang: "en-US", localService: true }],
   speak(utterance) {
     spoken.push(utterance.text);
     pending.push(utterance);

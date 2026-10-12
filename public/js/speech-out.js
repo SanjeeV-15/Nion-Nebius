@@ -19,6 +19,40 @@ const PREFERRED = [
   "Samantha",
 ];
 
+// Chrome loads its list of voices AFTER the page opens. If Nion speaks before that, it
+// gets Chrome's plain default voice (the robotic one), and a moment later the good
+// voice, so one conversation has two different voices. So we wait for the list, pick
+// the voice once, and keep it for the whole session.
+let chosenVoice = null;
+let voicesNeverLoaded = false;
+
+function voice() {
+  if (!chosenVoice) chosenVoice = pickVoice();
+  return chosenVoice;
+}
+
+function waitForVoices(maxMs) {
+  if (speechSynthesis.getVoices().length > 0 || voicesNeverLoaded) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      voicesNeverLoaded = true; // some computers really have none: don't wait again
+      resolve();
+    }, maxMs);
+    speechSynthesis.addEventListener?.("voiceschanged", () => {
+      if (speechSynthesis.getVoices().length > 0) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  });
+}
+
+// Start loading the voices as soon as the page opens.
+if (speechOutSupported) {
+  speechSynthesis.getVoices();
+  speechSynthesis.addEventListener?.("voiceschanged", voice);
+}
+
 function pickVoice() {
   const english = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
   for (const hint of PREFERRED) {
@@ -41,20 +75,21 @@ function splitIntoSentences(text) {
 }
 
 /** Reads `text` aloud. Resolves when Nion has finished speaking. */
-export function speak(text) {
+export async function speak(text, { voiceWaitMs = 1500 } = {}) {
+  if (!speechOutSupported) return;
+  await waitForVoices(voiceWaitMs);
   return new Promise((resolve) => {
-    if (!speechOutSupported) return resolve();
     speechSynthesis.cancel(); // stop anything still being said
 
-    const voice = pickVoice();
+    const chosen = voice();
     const sentences = splitIntoSentences(text.replace(/\bNion\b/g, SPOKEN_NAME));
     let remaining = sentences.length;
     if (remaining === 0) return resolve();
 
     for (const sentence of sentences) {
       const utterance = new SpeechSynthesisUtterance(sentence);
-      if (voice) utterance.voice = voice;
-      utterance.lang = voice?.lang ?? "en-US";
+      if (chosen) utterance.voice = chosen;
+      utterance.lang = chosen?.lang ?? "en-US";
       const done = () => {
         remaining -= 1;
         if (remaining === 0) resolve();
