@@ -93,6 +93,15 @@ export function listConversations() {
   return readConversations().sort((a, b) => (b.updatedAt ?? b.startedAt) - (a.updatedAt ?? a.startedAt));
 }
 
+/** Forgets every saved conversation. */
+export function clearConversations() {
+  try {
+    localStorage.removeItem(CONVERSATIONS_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
 export function getConversation(id) {
   return readConversations().find((c) => c.id === id) ?? null;
 }

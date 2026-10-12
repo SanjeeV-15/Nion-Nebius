@@ -66,7 +66,7 @@ and there is also a **Start conversation** button as a backup. The **History** l
 past conversations on your device, with a Copy button for each transcript.
 
 Open http://localhost:3000/?debug to see a log of what Nion hears and decides, and
-`?reset` to make it forget your name. If Nion gets your name wrong, say "call me Sanjeev".
+`?reset` to start fresh (it forgets your name and clears History). If Nion gets your name wrong, say "call me Sanjeev".
 
 ## Checks
 

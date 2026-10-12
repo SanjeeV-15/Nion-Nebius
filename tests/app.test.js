@@ -126,7 +126,7 @@ function makeElement() {
 }
 
 let appVersion = 0;
-async function startApp({ name } = {}) {
+async function startApp({ name, search = "" } = {}) {
   storage = new Map();
   if (name) storage.set("nion.name", name);
   elements = {};
@@ -137,7 +137,7 @@ async function startApp({ name } = {}) {
   locationPermission = "prompt";
   locationWorks = true;
   locationRequests = 0;
-  globalThis.location = { search: "" };
+  globalThis.location = { search };
   globalThis.document = {
     getElementById: (id) => (elements[id] ??= makeElement()),
     addEventListener: (type, handler) => (pageHandlers[type] = handler),
@@ -612,4 +612,51 @@ test("tapping the circle stops Nion, and Escape does nothing when Nion is idle",
   await tick();
   assert.equal(fetches[0].aborted, true, "the request was cancelled");
   assert.match(status(), /Listening/);
+});
+
+test("the live 'what Chrome heard' line is hidden unless ?debug is in the address", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.equal(elements.heard.hidden, true);
+  await hear("hey nion what is the date", { final: false });
+  assert.equal(elements.heard.textContent, "", "nothing is shown to viewers");
+
+  await startApp({ name: "Sanjeev", search: "?debug" });
+  assert.equal(elements.heard.hidden, false);
+  await hear("hey nion what is the date", { final: false });
+  assert.match(elements.heard.textContent, /what is the date/);
+});
+
+test("?reset forgets the name and clears History, so a demo starts fresh", async () => {
+  storage = new Map([["nion.conversations", JSON.stringify([{ id: "c1", startedAt: 1, turns: [] }])]]);
+  elements = {};
+  pageHandlers = {};
+  spoken = [];
+  pending = [];
+  fetches = [];
+  globalThis.location = { search: "?reset" };
+  storage.set("nion.name", "Sanjeev Neon");
+  globalThis.document = { getElementById: (id) => (elements[id] ??= makeElement()), addEventListener: () => {} };
+  await import(`../public/js/app.js?run=${++appVersion}`);
+  assert.equal(storage.get("nion.name"), undefined);
+  assert.equal(storage.get("nion.conversations"), undefined);
+});
+
+test("a single stray word heard while Nion is talking does not cut it off", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what are some places to eat near me");
+  fetches[0].reply("Here are five places. Mizumi Ramen is affordable Japanese. Cafe Rio is cheap Mexican.");
+  await tick();
+  const speakingBefore = pending.length;
+  assert.ok(speakingBefore > 0, "Nion is speaking");
+
+  // Chrome mishears one word of Nion's own voice, as the finished phrase.
+  await hear("Brett");
+  assert.equal(pending.length, speakingBefore, "still speaking");
+  assert.equal(fetches.length, 1, "nothing was asked");
+  assert.match(status(), /Speaking/);
+
+  // A real interruption (a stop word, or a real phrase) still works.
+  await hear("what about Mumbai");
+  assert.equal(pending.length, 0, "stopped");
+  assert.equal(fetches.length, 2);
 });

@@ -17,7 +17,7 @@ import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
-import { getName, setName, clearName, recordExchange } from "./storage.js";
+import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
 
@@ -34,12 +34,17 @@ const el = {
 
 const params = new URLSearchParams(location.search);
 
-// Opening the page with ?reset forgets the saved name, to try first use again.
-if (params.has("reset")) clearName();
+// Opening the page with ?reset starts completely fresh: it forgets the saved name and
+// all saved conversations (useful before recording a demo).
+if (params.has("reset")) {
+  clearName();
+  clearConversations();
+}
 
 // Opening the page with ?debug shows a log of what Nion hears and decides, which
 // helps when something doesn't work the way it should.
 const debugOn = params.has("debug");
+el.heard.hidden = !debugOn; // the live "what Chrome heard" line is for debugging, not for viewers
 const traceLines = [];
 function trace(kind, detail = "") {
   const t = new Date();
@@ -229,7 +234,7 @@ let lastInterim = "";
 function handleInterim(text) {
   if (session.followUp) openFollowUp(); // you are talking: keep the window open
   // Show what Chrome is hearing right now, before it has finished the phrase.
-  el.heard.textContent = `Hearing: “${text}”`;
+  if (debugOn) el.heard.textContent = `Hearing: “${text}”`;
   const busy = state === "speaking" || state === "thinking";
   const interrupting = busy && isInterruption(text, echo.text);
   if (text !== lastInterim) {
@@ -250,7 +255,7 @@ function handleInterim(text) {
 
 function handleHeard(text) {
   if (!text || state === "off") return;
-  el.heard.textContent = `Heard: “${text}”`;
+  if (debugOn) el.heard.textContent = `Heard: “${text}”`;
   lastInterim = "";
   trace("final", `“${text}” (state ${state}, conversation ${session.active ? "on" : "off"}, awaiting ${session.awaiting ?? "nothing"})`);
 
@@ -274,7 +279,16 @@ function handleHeard(text) {
     }
   }
 
-  if (state === "speaking" || state === "thinking") interrupt();
+  if (state === "speaking" || state === "thinking") {
+    // On laptop speakers Chrome often mishears one word of Nion's own voice (a stray
+    // "Brett" in the middle of a list). One odd word is far more likely that than you
+    // interrupting, so it is ignored. A stop word ("wait") or a real phrase still counts.
+    if (!shortAnswer && !isInterruption(text, echo.text)) {
+      trace("ignored", "one stray word while Nion was talking");
+      return;
+    }
+    interrupt();
+  }
 
   const action = decide(session, text);
   trace("decided", JSON.stringify(action));
