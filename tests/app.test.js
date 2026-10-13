@@ -580,7 +580,7 @@ test("when the API credit has run out, the screen says so, and Nion still only s
   await tick();
 
   assert.match(elements.problem.textContent, /credit has run out/i);
-  assert.match(elements.problem.textContent, /Plans & Billing/);
+  assert.match(elements.problem.textContent, /Token Factory/);
   assert.match(saidSoFar(), /having trouble reaching my sources/i);
   assert.doesNotMatch(saidSoFar(), /credit/i, "billing details are not read out to a listener");
 });
@@ -785,4 +785,61 @@ test("a question that was interrupted does not change the notebook", async () =>
 test("opening the page with ?reset also empties the notebook", async () => {
   await startApp({ name: "Sanjeev", search: "?reset", stored: { "nion.data": { memories: [aMemory] } } });
   assert.equal(storage.get("nion.data"), undefined);
+});
+
+// --- Answers shown on screen, and typing -----------------------------------------
+
+test("a spoken answer is also shown quietly as text, with where it came from", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what's the latest news");
+  fetches[0].respond({ reply: "BBC reports a quiet day.", sources: [{ title: "BBC", url: "https://bbc.com/x" }, { title: "BBC", url: "https://bbc.com/y" }, { title: "Reuters", url: "https://reuters.com/z" }] });
+  await tick();
+
+  assert.equal(elements.exchange.hidden, false);
+  assert.match(elements["ex-q"].textContent, /You: .*latest news/);
+  assert.equal(elements["ex-a"].textContent, "Nion: BBC reports a quiet day.");
+  assert.equal(elements["ex-sources"].textContent, "Sources: BBC; Reuters", "each site once");
+});
+
+test("typing to Nion works without speech: the answer appears on screen and is not spoken", async () => {
+  await startApp({ name: "Sanjeev" });
+  const before = spoken.length;
+  elements["typed-input"].value = "add buy a SIM card to my to-do list";
+  const done = elements.typed.handlers.submit({ preventDefault() {} });
+  await tick();
+
+  assert.equal(fetches.at(-1).body.messages.at(-1).content, "add buy a SIM card to my to-do list");
+  assert.match(elements["ex-a"].textContent, /Thinking/);
+  assert.equal(elements["typed-input"].value, "", "the box is cleared");
+
+  fetches.at(-1).respond({ reply: "Added.", changes: [{ op: "add_item", list: "todo", item: { id: "t1", text: "buy a SIM card", at: "" } }] });
+  await done;
+  assert.equal(elements["ex-a"].textContent, "Nion: Added.");
+  assert.equal(spoken.length, before, "typed answers are shown, not spoken");
+  assert.equal(JSON.parse(storage.get("nion.data")).lists.todo[0].text, "buy a SIM card");
+  assert.equal(JSON.parse(storage.get("nion.conversations")).length, 1, "it also appears in History");
+});
+
+test("a typed question that fails shows a problem on screen", async () => {
+  await startApp({ name: "Sanjeev" });
+  elements["typed-input"].value = "hello";
+  const done = elements.typed.handlers.submit({ preventDefault() {} });
+  await tick();
+  fetches.at(-1).serverError("key");
+  await done;
+  assert.match(elements.problem.textContent, /rejected the API key/);
+  assert.equal(elements["ex-a"].textContent, "");
+});
+
+test("typing while Nion is speaking stops Nion", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what time is it in Denver");
+  fetches[0].reply("It's one seventeen in Denver right now.");
+  await tick();
+  assert.equal(pending.length, 1, "Nion is speaking");
+
+  elements["typed-input"].value = "never mind";
+  elements.typed.handlers.submit({ preventDefault() {} });
+  await tick();
+  assert.equal(pending.length, 0, "Nion stopped talking");
 });

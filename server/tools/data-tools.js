@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { LISTS, LIST_NAMES, LIMITS, describeDay, findByText } from "../../shared/store.js";
 
 const newId = () => randomUUID().slice(0, 8);
-const listEnum = { type: "string", enum: LISTS, description: "todo is the to-do list; visit is the list of places to visit." };
+const listEnum = { type: "string", enum: LISTS, description: "todo = to-do list; visit = places to visit." };
 const say = (message) => ({ text: message, ops: [] });
 
 const openItems = (data, list) => data.lists[list].filter((i) => !i.done);
@@ -20,11 +20,10 @@ export function createDataTools() {
     {
       name: "remember",
       description:
-        "Save a lasting fact or preference about the person (for example 'doesn't eat pork', 'prefers buses to taxis', 'allergic to nuts'). " +
-        "Use it when they tell you something about themselves that would still matter on a later trip. Not for one-off requests.",
+        "Save a lasting fact or preference about the person (like 'avoids pork' or 'prefers buses'). Not for one-off requests.",
       parameters: {
         type: "object",
-        properties: { fact: { type: "string", description: "The fact, in a short plain sentence about the person." } },
+        properties: { fact: { type: "string", description: "The fact, as a short sentence." } },
         required: ["fact"],
       },
       run({ fact }, { data }) {
@@ -39,10 +38,10 @@ export function createDataTools() {
     },
     {
       name: "forget",
-      description: "Forget something you remembered about the person, when they ask you to forget it.",
+      description: "Forget a saved fact when the person asks.",
       parameters: {
         type: "object",
-        properties: { fact: { type: "string", description: "Which memory to forget, in a few words." } },
+        properties: { fact: { type: "string", description: "Which fact." } },
         required: ["fact"],
       },
       run({ fact }, { data }) {
@@ -54,15 +53,14 @@ export function createDataTools() {
     {
       name: "add_expense",
       description:
-        "Record money the person spent. Use the currency they said; if they didn't say, use the usual currency of the place they are in. " +
-        "Pick a short category such as food, transport, lodging, shopping or other.",
+        "Record money the person spent. Use the currency they said, else the usual one where they are. Short category: food, transport, lodging, shopping or other.",
       parameters: {
         type: "object",
         properties: {
-          amount: { type: "number", description: "How much, as a number." },
-          currency: { type: "string", description: "Three-letter currency code, for example USD or EUR." },
-          category: { type: "string", description: "One or two words, for example food." },
-          note: { type: "string", description: "What it was for, in a few words." },
+          amount: { type: "number", description: "Amount." },
+          currency: { type: "string", description: "Currency code, like USD." },
+          category: { type: "string", description: "One or two words." },
+          note: { type: "string", description: "What for." },
         },
         required: ["amount"],
       },
@@ -89,10 +87,10 @@ export function createDataTools() {
     },
     {
       name: "add_to_list",
-      description: "Add something to the person's to-do list or to their list of places to visit.",
+      description: "Add an item to the to-do list or the to-visit list.",
       parameters: {
         type: "object",
-        properties: { list: listEnum, item: { type: "string", description: "What to add, in a few words." } },
+        properties: { list: listEnum, item: { type: "string", description: "The item." } },
         required: ["list", "item"],
       },
       run({ list, item }, { data }) {
@@ -108,13 +106,13 @@ export function createDataTools() {
     },
     {
       name: "update_list_item",
-      description: "Tick off an item as done, or remove it, on the to-do list or the to-visit list.",
+      description: "Tick off or remove an item on the to-do or to-visit list.",
       parameters: {
         type: "object",
         properties: {
           list: listEnum,
-          item: { type: "string", description: "Which item, in a few words." },
-          action: { type: "string", enum: ["done", "remove"], description: "done to tick it off, remove to delete it." },
+          item: { type: "string", description: "Which item." },
+          action: { type: "string", enum: ["done", "remove"], description: "done = tick off; remove = delete." },
         },
         required: ["list", "item", "action"],
       },
@@ -134,13 +132,12 @@ export function createDataTools() {
     {
       name: "save_draft",
       description:
-        "Save an email draft for the person to look at later. This never sends anything. " +
-        "Write it as a short, polite email in the person's voice, with a subject.",
+        "Save an email draft (never sent): a short, polite email in the person's voice, with a subject.",
       parameters: {
         type: "object",
         properties: {
-          to: { type: "string", description: "Who it is for (a name or address), if they said." },
-          subject: { type: "string", description: "A short subject line." },
+          to: { type: "string", description: "Who it is for, if said." },
+          subject: { type: "string", description: "Subject line." },
           body: { type: "string", description: "The email text." },
         },
         required: ["body"],

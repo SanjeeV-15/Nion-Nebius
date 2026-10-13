@@ -188,6 +188,12 @@ export function describeDay(data, day) {
     .join("; ");
 }
 
+/** The person's own calendar date as "YYYY-MM-DD", from their device's clock and time zone. */
+export function localToday(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 /** The days that have expenses, newest first, as "YYYY-MM-DD" (expenses with no day come last as ""). */
 export function expenseDays(data) {
   return [...new Set(data.expenses.map((e) => e.day))].sort().reverse().sort((a, b) => (a === "") - (b === ""));

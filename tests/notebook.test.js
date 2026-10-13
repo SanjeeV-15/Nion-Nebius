@@ -146,3 +146,41 @@ test("the new store changes: reopen, remove expense, remove draft", () => {
   assert.deepEqual(next.expenses.map((e) => e.id), ["e2"]);
   assert.equal(next.drafts.length, 0);
 });
+
+// --- Email and share buttons ----------------------------------------------------
+
+const useNavigator = (value) => Object.defineProperty(globalThis, "navigator", { configurable: true, value });
+
+test("a draft has an 'Open in email app' link, and a name leaves the To field empty", async () => {
+  await openNotebook(sample); // the sample draft is for "Maria", a name, not an address
+  const link = everyNode(root).find((n) => n.tag === "a" && n.textContent === "Open in email app");
+  assert.ok(link.href.startsWith("mailto:?subject=Running%20late"), link.href);
+  assert.match(decodeURIComponent(link.href), /Hi Maria, I'll be late\./);
+
+  const withAddress = applyOps(emptyData(), [{ op: "save_draft", item: { id: "d2", to: "maria@example.com", subject: "Hi", body: "Hello" } }]);
+  await openNotebook(withAddress);
+  assert.ok(everyNode(root).find((n) => n.tag === "a" && n.textContent === "Open in email app").href.startsWith("mailto:maria@example.com?"));
+});
+
+test("Share on a draft, a list and the day's recap hands the right text to the share sheet", async () => {
+  const shared = [];
+  useNavigator({ share: async (payload) => shared.push(payload), clipboard: { writeText: async () => {} } });
+  await openNotebook(sample);
+
+  const shareButtons = buttonsLabelled(root, "Share");
+  assert.equal(shareButtons.length, 3, "one per list with open items (2) and one for the draft");
+  for (const b of shareButtons) await b.click();
+  const texts = shared.map((s) => s.text);
+  assert.ok(texts.some((t) => t === "To-do list:\n- buy a SIM card"));
+  assert.ok(texts.some((t) => t === "To-visit list:\n- the old town"));
+  assert.ok(texts.some((t) => /^To: Maria\nSubject: Running late\n\nHi Maria/.test(t)));
+
+  await buttonsLabelled(root, "Share today's recap")[0].click();
+  assert.match(shared.at(-1).text, /^Trip recap for \d{4}-\d{2}-\d{2}\n\nSpent today:/);
+  assert.equal(shared.at(-1).title, "Trip recap");
+});
+
+test("a list with nothing open has no Share button", async () => {
+  await openNotebook(emptyData());
+  assert.equal(buttonsLabelled(root, "Share").length, 0);
+});

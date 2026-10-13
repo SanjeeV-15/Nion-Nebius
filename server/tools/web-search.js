@@ -25,16 +25,16 @@ export function createWebSearchTool({ apiKey = process.env.TAVILY_API_KEY, fetch
     // One search per question keeps replies quick: every extra search adds a few seconds.
     maxCalls: 1,
     description:
-      "Search the web for current information: news, prices, weather, opening hours, places and businesses, transport options. " +
-      "Write a short plain query. For anything local, include the person's place in the query.",
+      "Search the web for current information: news, prices, weather, hours, places, transport. " +
+      "Short plain query; for anything local, include the person's place.",
     parameters: {
       type: "object",
       properties: {
-        query: { type: "string", description: "What to search for, in a few plain words." },
+        query: { type: "string", description: "What to search for." },
         topic: {
           type: "string",
           enum: ["general", "news", "finance"],
-          description: "Use news for current events, finance for markets and prices, otherwise general.",
+          description: "news for current events, finance for markets, else general.",
         },
       },
       required: ["query"],

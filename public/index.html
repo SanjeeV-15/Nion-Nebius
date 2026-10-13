@@ -48,6 +48,19 @@
       <button id="convo" class="pill" type="button" hidden>Start conversation</button>
     </div>
 
+    <!-- The last thing said and what Nion answered, shown quietly as text. app.js fills it in. -->
+    <section id="exchange" class="exchange" aria-live="polite" hidden>
+      <p id="ex-q" class="ex-q"></p>
+      <p id="ex-a" class="ex-a"></p>
+      <p id="ex-sources" class="ex-sources"></p>
+    </section>
+
+    <!-- Prefer to type, or can't use a microphone? Same Nion, answers shown on screen. -->
+    <form id="typed" class="typed" autocomplete="off">
+      <input id="typed-input" type="text" maxlength="500" placeholder="Or type to Nion…" aria-label="Type a message to Nion">
+      <button class="pill small" type="submit">Send</button>
+    </form>
+
     <p><a class="history-link" href="/notebook.html">Notebook</a> &nbsp;·&nbsp; <a class="history-link" href="/history.html">History</a></p>
 
     <p id="heard" class="heard" aria-live="polite" hidden></p>

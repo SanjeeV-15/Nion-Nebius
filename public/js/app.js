@@ -19,6 +19,7 @@ import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
 import { loadData, applyChanges, clearData } from "./data.js";
+import { createTypedChat } from "./typed.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
 
@@ -31,6 +32,12 @@ const el = {
   debug: document.getElementById("debug"),
   orb: document.getElementById("orb"),
   copylog: document.getElementById("copylog"),
+  exchange: document.getElementById("exchange"),
+  exQ: document.getElementById("ex-q"),
+  exA: document.getElementById("ex-a"),
+  exSources: document.getElementById("ex-sources"),
+  typedForm: document.getElementById("typed"),
+  typedInput: document.getElementById("typed-input"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -90,9 +97,9 @@ const TROUBLE = "I'm having trouble reaching my sources. Please try again in a m
 
 // What to show on screen for the person running Nion, by the reason the server gives.
 const PROBLEM_TEXT = {
-  credit: "Your Claude API credit has run out. Add credit in the Anthropic Console (Plans & Billing), then try again.",
-  key: "The Claude API key was rejected. Check ANTHROPIC_API_KEY in your .env file.",
-  busy: "Claude is busy right now. Try again in a moment.",
+  credit: "The AI service says the account's credit has run out. Check the credit balance (Nebius Token Factory or the Anthropic Console), then try again.",
+  key: "The AI service rejected the API key. Check the key in your .env file (NEBIUS_API_KEY or ANTHROPIC_API_KEY).",
+  busy: "The AI service is busy right now. Try again in a moment.",
 };
 const FILLERS = ["One moment.", "Let me check.", "Checking on that.", "Just a second."];
 let lastFiller = -1;
@@ -573,6 +580,7 @@ async function ask(question, oneShot, gps) {
     }
 
     const { reply } = data;
+    showExchange(question, reply, data.sources);
     if (data.place) known.place = data.place; // worked out from GPS: remember it
     // Notebook changes (an expense, a list item...) are kept only for an answer we accept.
     if (data.changes?.length) applyChanges(data.changes);
@@ -597,6 +605,38 @@ async function ask(question, oneShot, gps) {
     await say(TROUBLE);
   }
 }
+
+// The last question and answer, shown quietly as text: for people who can't hear Nion
+// well, for a noisy place, and so a viewer can see what Nion found and where from.
+function showExchange(question, reply, sources = []) {
+  el.exchange.hidden = false;
+  el.exQ.textContent = question ? `You: ${question}` : "";
+  el.exA.textContent = reply ? `Nion: ${reply}` : "";
+  const names = [...new Set(sources.map((source) => source.title || source.url))].slice(0, 4);
+  el.exSources.textContent = names.length ? `Sources: ${names.join("; ")}` : "";
+}
+
+// Typing instead of talking. It shares where you are and your notebook with the voice
+// side, but keeps its own conversation (see typed.js).
+const typed = createTypedChat({ known, getContext: currentContext, loadData, applyChanges, recordExchange });
+let typing = false;
+el.typedForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const text = el.typedInput.value.trim();
+  if (!text || typing) return;
+  typing = true;
+  el.typedInput.value = "";
+  showProblem("");
+  if (state === "speaking" || state === "thinking") interrupt(); // typing counts as speaking up
+  showExchange(text, "Thinking…");
+  const result = await typed.send(text);
+  typing = false;
+  if (result.needsPlace) showExchange(text, "Which city are you in? Type it and press Send.");
+  else if (result.error) {
+    showExchange(text, "");
+    showProblem(PROBLEM_TEXT[result.reason] ?? "Nion couldn't get an answer. Please try again in a moment.");
+  } else showExchange(text, result.reply, result.sources);
+});
 
 // A manual way to stop Nion, for when your voice can't be heard over its own (on
 // laptop speakers the microphone hears Nion too): press Escape, or tap the circle.
@@ -636,5 +676,5 @@ el.start.addEventListener("click", async () => {
 if (!speechInSupported || !speechOutSupported) {
   el.start.hidden = true;
   el.status.textContent = "Nion needs a browser that can do speech.";
-  showProblem("This browser can't listen or speak. Please open Nion in Google Chrome.");
+  showProblem("This browser can't listen or speak, but you can still type to Nion below. For voice, open Nion in Google Chrome.");
 }

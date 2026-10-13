@@ -7,6 +7,11 @@ test("a used-up credit balance is recognised (Anthropic reports it as a 400)", (
   assert.equal(classifyFailure(error), "credit");
 });
 
+test("Nebius-style credit problems are recognised too (a 402, or an insufficient balance message)", () => {
+  assert.equal(classifyFailure(Object.assign(new Error("Payment Required"), { status: 402 })), "credit");
+  assert.equal(classifyFailure(Object.assign(new Error("Nebius request failed (400): insufficient credits"), { status: 400 })), "credit");
+});
+
 test("a rejected key, a busy service, and anything else", () => {
   assert.equal(classifyFailure(Object.assign(new Error("invalid x-api-key"), { status: 401 })), "key");
   assert.equal(classifyFailure(Object.assign(new Error("forbidden"), { status: 403 })), "key");

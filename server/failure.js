@@ -10,7 +10,7 @@
 export function classifyFailure(error) {
   const status = error?.status;
   const message = String(error?.message ?? "");
-  if (/credit balance is too low/i.test(message)) return "credit";
+  if (/credit balance is too low|insufficient (funds|credits?|balance)|out of credits?|payment required/i.test(message) || status === 402) return "credit";
   if (status === 401 || status === 403) return "key";
   if (status === 429 || status === 529) return "busy";
   return undefined;

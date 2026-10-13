@@ -460,6 +460,68 @@ main.history {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
 }
 
+/* ---------- Last answer, shown as text, and typing ---------- */
+
+.exchange {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  text-align: left;
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  border-radius: 16px;
+}
+
+.exchange p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ex-q {
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+
+.ex-a {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.ex-sources {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+}
+
+.exchange p:empty {
+  display: none;
+}
+
+.typed {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.typed input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 16px;
+  color: var(--ink);
+  font: inherit;
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+}
+
+.typed input::placeholder {
+  color: var(--ink-faint);
+}
+
+.typed input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* ---------- Notebook ---------- */
 
 .nb-intro {
@@ -577,4 +639,30 @@ main.history {
 .history .nb-actions .pill {
   display: inline-block;
   margin: 0;
+}
+
+.nb-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.nb-head-row h2 {
+  margin: 0;
+}
+
+.nb-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+a.mini {
+  text-decoration: none;
+}
+
+.nb-actions {
+  flex-wrap: wrap;
 }

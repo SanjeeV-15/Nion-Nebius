@@ -5,7 +5,9 @@
 // Everything Nion or you wrote is put on the page as plain text, never as HTML.
 
 import { applyChanges, clearData, loadData } from "./data.js";
-import { describeDay, expenseDays, LIST_NAMES, LISTS } from "../../shared/store.js";
+import { describeDay, expenseDays, LIST_NAMES, LISTS, localToday } from "../../shared/store.js";
+import { draftAsText, listAsText, mailtoLink, recapAsText } from "../../shared/export.js";
+import { shareText } from "./share.js";
 
 const root = document.getElementById("notebook");
 
@@ -29,9 +31,23 @@ function change(ops) {
   render();
 }
 
-function section(title, emptyText, items) {
+// A small button that shares some text and shows what happened for a moment.
+function shareButton(label, getContent) {
+  const node = button(label, async () => {
+    const outcome = await shareText(getContent());
+    if (outcome === "cancelled") return;
+    node.textContent = { shared: "Shared", copied: "Copied", failed: "Couldn't share" }[outcome];
+    setTimeout(() => (node.textContent = label), 2000);
+  });
+  return node;
+}
+
+function section(title, emptyText, items, extra) {
   const box = el("section", "nb-section");
-  box.append(el("h2", "", title));
+  const head = el("div", "nb-head-row");
+  head.append(el("h2", "", title));
+  if (extra) head.append(extra);
+  box.append(head);
   if (items.length === 0) box.append(el("p", "nb-empty", emptyText));
   else box.append(...items);
   return box;
@@ -73,7 +89,9 @@ function listSection(data, name) {
     return node;
   });
   const title = name === "todo" ? "To-do list" : "To-visit list";
-  return section(title, `Nothing on the ${LIST_NAMES[name]} yet.`, items);
+  const hasOpen = data.lists[name].some((item) => !item.done);
+  const share = hasOpen ? shareButton("Share", () => ({ title: `My ${LIST_NAMES[name]}`, text: listAsText(data, name) })) : undefined;
+  return section(title, `Nothing on the ${LIST_NAMES[name]} yet.`, items, share);
 }
 
 function expensesSection(data) {
@@ -92,18 +110,27 @@ function draftsSection(data) {
   const drafts = [...data.drafts].reverse().map((d) => {
     const node = el("div", "nb-draft");
     const copy = button("Copy", async () => {
-      const ok = await copyText(`To: ${d.to}\nSubject: ${d.subject}\n\n${d.body}`);
+      const ok = await copyText(draftAsText(d));
       copy.textContent = ok ? "Copied" : "Couldn't copy";
       setTimeout(() => (copy.textContent = "Copy"), 2000);
     });
+    // Opens the person's own email app with this draft filled in. They press send.
+    const emailLink = mailtoLink(d);
+    const email = emailLink ? el("a", "mini", "Open in email app") : undefined;
+    if (email) email.href = emailLink;
     node.append(
       el("p", "nb-head", `To: ${d.to || "(nobody yet)"}`),
       el("p", "nb-head", `Subject: ${d.subject || "(none)"}`),
-      el("p", "nb-body", d.body),
+      el("p", "nb-body", d.body)
+    );
+    const buttons = el("div", "nb-buttons");
+    buttons.append(
+      ...(email ? [email] : []),
+      shareButton("Share", () => ({ title: d.subject || "Email draft", text: draftAsText(d) })),
       copy,
-      " ",
       button("Delete", () => change([{ op: "remove_draft", id: d.id }]))
     );
+    node.append(buttons);
     return node;
   });
   return section("Email drafts (saved, never sent)", "No drafts yet.", drafts);
@@ -134,6 +161,8 @@ function render() {
   );
 
   const actions = el("div", "nb-actions");
+  const recap = shareButton("Share today's recap", () => ({ title: "Trip recap", text: recapAsText(data, localToday()) }));
+  recap.className = "pill small";
   const exportButton = el("button", "pill small", "Export");
   exportButton.type = "button";
   exportButton.addEventListener("click", exportNotebook);
@@ -145,7 +174,7 @@ function render() {
       render();
     }
   });
-  actions.append(exportButton, wipe);
+  actions.append(recap, exportButton, wipe);
   root.append(actions);
 }
 
