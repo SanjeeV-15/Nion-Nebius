@@ -6,7 +6,7 @@
 //
 //   waiting   -> listening for "Hey Nion" (or, in a conversation, for anything you say)
 //   listening -> waiting for your question or your name
-//   thinking  -> asking Claude
+//   thinking  -> asking the AI
 //   speaking  -> reading something aloud
 //
 // Nion keeps listening in every state. If you start talking while it is thinking
@@ -87,7 +87,7 @@ const session = {
 const FOLLOW_UP_MS = 15000;
 let followUpTimer = null;
 
-// If Claude takes longer than this to answer (usually because it is searching the
+// If the AI takes longer than this to answer (usually because it is searching the
 // web), Nion says a short "one moment" so you know it hasn't stalled. Ordinary
 // answers arrive in about 1 to 2 seconds, so they don't trigger it.
 const FILLER_AFTER_MS = 2200;
@@ -99,8 +99,8 @@ const TROUBLE = "I'm having trouble reaching my sources. Please try again in a m
 
 // What to show on screen for the person running Nion, by the reason the server gives.
 const PROBLEM_TEXT = {
-  credit: "The AI service says the account's credit has run out. Check the credit balance (Nebius Token Factory or the Anthropic Console), then try again.",
-  key: "The AI service rejected the API key. Check the key in your .env file (NEBIUS_API_KEY or ANTHROPIC_API_KEY).",
+  credit: "The AI service says the account's credit has run out. Check the credit balance (Nebius Token Factory), then try again.",
+  key: "The AI service rejected the API key. Check the key in your .env file (NEBIUS_API_KEY).",
   busy: "The AI service is busy right now. Try again in a moment.",
   visitor: "You've asked a lot in a short time. Please wait a little while and try again.",
   daily: "Nion has reached its limit for today, which keeps the demo free for everyone. Please try again tomorrow.",
@@ -117,7 +117,7 @@ function nextFiller() {
   lastFiller = i;
   return FILLERS[i];
 }
-let messages = []; // the conversation so far, sent to Claude each time
+let messages = []; // the conversation so far, sent to the AI each time
 let conversationId = null; // which saved conversation (for History) the next answer belongs to
 let nameTries = 0;
 
@@ -138,7 +138,7 @@ let questionTimer = null;
 // interrupt, the number moves on, and anything still finishing from the old turn
 // notices and quietly stops.
 let turn = 0;
-let abortAsk = null; // lets us cancel a question that is still waiting for Claude
+let abortAsk = null; // lets us cancel a question that is still waiting for the AI
 // What Nion said last, and until when its voice may still be coming back through
 // the microphone. Chrome reports words a moment late, so this keeps going for a
 // few seconds after Nion stops.
@@ -521,7 +521,7 @@ async function ask(question, oneShot, gps) {
   showProblem("");
 
   // A question outside any conversation starts a new one (and gets a greeting).
-  // Otherwise Claude gets everything said so far, so follow-ups make sense.
+  // Otherwise the AI gets everything said so far, so follow-ups make sense.
   if (oneShot) {
     messages = [];
     conversationId = null;
@@ -580,7 +580,7 @@ async function ask(question, oneShot, gps) {
     await fillerFinished(); // let "one moment" finish before the answer starts
 
     if (mine !== turn) {
-      thread.pop(); // you interrupted while Claude was answering: drop that question
+      thread.pop(); // you interrupted while the AI was answering: drop that question
       return;
     }
 

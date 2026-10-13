@@ -2,11 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyFailure } from "../server/failure.js";
 
-test("a used-up credit balance is recognised (Anthropic reports it as a 400)", () => {
-  const error = Object.assign(new Error('400 {"error":{"message":"Your credit balance is too low to access the Anthropic API."}}'), { status: 400 });
-  assert.equal(classifyFailure(error), "credit");
-});
-
 test("Nebius-style credit problems are recognised too (a 402, or an insufficient balance message)", () => {
   assert.equal(classifyFailure(Object.assign(new Error("Payment Required"), { status: 402 })), "credit");
   assert.equal(classifyFailure(Object.assign(new Error("Nebius request failed (400): insufficient credits"), { status: 400 })), "credit");

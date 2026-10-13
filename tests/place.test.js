@@ -20,7 +20,7 @@ test("an answer with no city gives no place", () => {
   assert.equal(placeFromNominatim(null), null);
 });
 
-test("reads Claude's fallback line", () => {
+test("reads the AI's fallback line", () => {
   assert.deepEqual(parsePlaceLine("Miami | Florida | US"), { city: "Miami", region: "Florida", country: "US" });
   assert.deepEqual(parsePlaceLine("Hartford | - | us"), { city: "Hartford", region: undefined, country: "US" });
   assert.equal(parsePlaceLine("- | - | -"), null);

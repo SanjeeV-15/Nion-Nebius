@@ -1,18 +1,20 @@
 // The Nebius "provider": asks a model on Nebius Token Factory (for example an
-// NVIDIA Nemotron model). Same job as providers/claude.js, different AI.
+// NVIDIA Nemotron model). It is the one place that talks to the AI.
 //
 // Token Factory speaks the same "chat completions" language as OpenAI, so this uses
 // plain fetch and needs no extra package. Docs: https://docs.tokenfactory.nebius.com
 //
 // Settings (in .env):
 //   NEBIUS_API_KEY   your Token Factory key
-//   NION_MODEL       the exact model name from Token Factory's model list
+//   NION_MODEL       a model name from Token Factory's list (default: Nemotron 3 Ultra)
 //
 // Tools: when the AI wants to do something (search the web, later: save an expense),
 // it answers with a "tool call" instead of words. We run the tool, send the result
 // back, and ask again, until it answers in words. That is the "tool loop" below.
 
 import { applyOps, emptyData } from "../../shared/store.js";
+
+import { DEFAULT_MODEL } from "../config.js";
 
 const DEFAULT_BASE_URL = "https://api.tokenfactory.nebius.com/v1/";
 
@@ -68,7 +70,7 @@ function cleanSpoken(text) {
 export function createNebiusProvider({
   apiKey = process.env.NEBIUS_API_KEY,
   baseUrl = process.env.NEBIUS_BASE_URL || DEFAULT_BASE_URL,
-  model: defaultModel = process.env.NION_MODEL,
+  model: defaultModel = process.env.NION_MODEL || DEFAULT_MODEL,
   fetchImpl = fetch,
   tools = [],
   // Set NION_FALLBACK_MODEL=none to turn the fallback off.

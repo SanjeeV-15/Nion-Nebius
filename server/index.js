@@ -1,13 +1,13 @@
 // The small server. It does two jobs:
 //   1. Serves the Nion page (everything in the public/ folder) to your browser.
-//   2. Answers POST /api/chat: takes what the person said, asks Claude, and
+//   2. Answers POST /api/chat: takes what the person said, asks the AI, and
 //      returns Nion's reply. This is the only place your API key is used.
 
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { configProblem, providerName } from "./config.js";
+import { configProblem } from "./config.js";
 import { cleanData } from "../shared/store.js";
 import { createLimiter, cleanVisitorId, numberSetting } from "./limits.js";
 
@@ -18,7 +18,7 @@ if (problem) {
   process.exit(1);
 }
 
-if (providerName() === "nebius" && !process.env.TAVILY_API_KEY) {
+if (!process.env.TAVILY_API_KEY) {
   console.warn("Note: TAVILY_API_KEY is not set, so Nion can't search the web. Add it to .env to turn search on.");
 }
 

@@ -1,9 +1,9 @@
 # Packs Nion into a container so any host can run it (Nebius Serverless Endpoints,
 # or another). Keys are NOT in the image: the host gives them to Nion as settings
-# (NION_PROVIDER, NEBIUS_API_KEY, NION_MODEL, TAVILY_API_KEY).
+# (NEBIUS_API_KEY, TAVILY_API_KEY, and optionally NION_MODEL).
 #
 # Build:  docker build -t nion .
-# Run:    docker run -p 3000:3000 -e NION_PROVIDER=nebius -e NEBIUS_API_KEY=... -e NION_MODEL=... nion
+# Run:    docker run -p 3000:3000 -e NEBIUS_API_KEY=... -e TAVILY_API_KEY=... nion
 
 FROM node:22-alpine
 WORKDIR /app

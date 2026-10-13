@@ -1,12 +1,11 @@
 // The "brain": works out Nion's answer.
 //
-// Which AI actually answers is a "provider" (see providers/): Claude or Nebius.
-// This file holds what is the same for every provider: Nion's instructions, the
-// "I need to know where you are" signal, and the fallback when there is no answer.
+// The "brain" works out Nion's answer. The AI that actually answers is a "provider"
+// (see providers/nebius.js): Nemotron on Nebius Token Factory. This file holds the parts
+// that don't depend on which model it is: Nion's instructions, the "I need to know where
+// you are" signal, and the fallback when there is no answer.
 
 import { buildSystemPrompt } from "./prompt.js";
-import { providerName } from "./config.js";
-import { createClaudeProvider } from "./providers/claude.js";
 import { createNebiusProvider } from "./providers/nebius.js";
 import { createWebSearchTool } from "./tools/web-search.js";
 import { createDataTools } from "./tools/data-tools.js";
@@ -15,11 +14,10 @@ import { createDataTools } from "./tools/data-tools.js";
 // person is and it doesn't know. (See the rules in prompt.js.)
 const NEED_LOCATION = "[[NEED_LOCATION]]";
 
-/** Builds the provider named in .env. (Unknown names are caught earlier, by config.js.) */
+/** Builds the Nebius provider, with web search if a Tavily key is set, and the notebook tools. */
 export function createProvider(env = process.env) {
-  if (providerName(env) !== "nebius") return createClaudeProvider();
-  // Web search needs a Tavily key. Without one Nion still works, and says honestly
-  // that it can't look things up (see prompt.js).
+  // Without a Tavily key Nion still works, and says honestly that it can't look things up
+  // (see prompt.js).
   const tools = [...(env.TAVILY_API_KEY ? [createWebSearchTool({ apiKey: env.TAVILY_API_KEY })] : []), ...createDataTools()];
   return createNebiusProvider({ tools });
 }
@@ -38,7 +36,7 @@ export async function completeShort(prompt, provider) {
  *   context:  details from the person's browser (date, time, time zone, name)
  *   location: optional { city, region, country } to localize searches
  *   data:     the person's notebook (memories, expenses, lists, drafts), already cleaned
- *   provider: which AI to use (tests pass a pretend one; normally it comes from .env)
+ *   provider: which AI to use (tests pass a pretend one)
  * Returns { reply, sources, searches, usage, ops }: reply is the text Nion should speak,
  * sources are the pages it used, as [{ title, url }], and ops are notebook changes
  * for the browser to apply.

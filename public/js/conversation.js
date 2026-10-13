@@ -20,7 +20,7 @@
 //   { type: "start" }                      begin a conversation
 //   { type: "end" }                        end the conversation
 //   { type: "awaitQuestion" }              heard only "Hey Nion"
-//   { type: "ask", question, oneShot }     send a question to Claude
+//   { type: "ask", question, oneShot }     send a question to the AI
 
 import { parseUtterance, detectCommand } from "./wake.js";
 import { extractName } from "./name.js";

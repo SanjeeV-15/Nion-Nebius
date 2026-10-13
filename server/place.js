@@ -4,7 +4,7 @@
 // look the coordinates up. The main lookup is OpenStreetMap's free "Nominatim"
 // service, which gives a neighbourhood (like "Brickell") as well as the city, which
 // is what makes "near me" mean near me. If that is unreachable, a small, fast
-// Claude model names just the city, state and country instead.
+// the AI names just the city, state and country instead.
 //
 // Nominatim's rules (https://operations.osmfoundation.org/policies/nominatim/): no
 // more than one request a second, and an identifying User-Agent. Nion looks up one
@@ -34,7 +34,7 @@ export function placeFromNominatim(json) {
   };
 }
 
-/** Reads a line like "Miami | Florida | US" (from Claude) into a place. A dash means "not sure". */
+/** Reads a line like "Miami | Florida | US" (from the AI) into a place. A dash means "not sure". */
 export function parsePlaceLine(line) {
   const parts = String(line ?? "").split("|").map((part) => part.trim());
   const city = cleanPlacePart(parts[0]);
@@ -67,7 +67,7 @@ async function fromNominatim(lat, lon, fetchImpl = fetch) {
 }
 
 // The fallback when OpenStreetMap can't help: ask the AI that Nion is configured with
-// (Nemotron on Nebius, or Claude). `complete` takes a question and returns its short answer.
+// (Nemotron on Nebius). `complete` takes a question and returns its short answer.
 async function fromModel(complete, lat, lon) {
   const line = await complete(
     `GPS coordinates: ${lat.toFixed(4)},${lon.toFixed(4)}. ` +

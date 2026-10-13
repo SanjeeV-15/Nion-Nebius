@@ -91,7 +91,7 @@ const serverFile = new URL("../server/index.js", import.meta.url).pathname;
 
 function startServer(env, port) {
   const child = spawn(process.execPath, [serverFile], {
-    env: { PATH: process.env.PATH, ANTHROPIC_API_KEY: "sk-ant-not-a-real-key", ANTHROPIC_BASE_URL: "http://127.0.0.1:1", ...env, PORT: String(port) },
+    env: { PATH: process.env.PATH, NEBIUS_API_KEY: "not-a-real-key", NION_MODEL: "m", NEBIUS_BASE_URL: "http://127.0.0.1:1", ...env, PORT: String(port) },
   });
   let output = "";
   child.stdout.on("data", (chunk) => (output += chunk));

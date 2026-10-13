@@ -164,10 +164,9 @@ test("Nion's instructions keep a rambling reply under the word limit too", () =>
 });
 
 test("the Tavily key in settings turns web search on for the Nebius provider", () => {
-  const base = { NION_PROVIDER: "nebius", NEBIUS_API_KEY: "k", NION_MODEL: "m" };
+  const base = { NEBIUS_API_KEY: "k", NION_MODEL: "m" };
   assert.deepEqual(createProvider({ ...base }).abilities, { search: false, data: true }, "notebook tools are always on");
   assert.deepEqual(createProvider({ ...base, TAVILY_API_KEY: "tvly-x" }).abilities, { search: true, data: true });
-  assert.deepEqual(createProvider({ ANTHROPIC_API_KEY: "x" }).abilities, { search: true }, "Claude searches by itself and has no notebook");
 });
 
 // ---- the one-search limit (keeps replies quick) ----

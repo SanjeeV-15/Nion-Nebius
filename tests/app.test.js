@@ -101,7 +101,7 @@ globalThis.fetch = (url, options) =>
       reply: (text) => respond({ reply: text }),
       respond,
       needLocation: () => respond({ needsLocation: true }),
-      // The server had a problem (for example it could not reach Claude).
+      // The server had a problem (for example it could not reach the AI service).
       serverError: (reason) => resolve({ ok: false, status: 502, json: async () => ({ error: "trouble", reason }) }),
     };
     options.signal?.addEventListener("abort", () => {
@@ -259,7 +259,7 @@ test("in a conversation, follow-ups need no wake phrase and it can be ended by v
 
   await hear("and in Mumbai");
   assert.equal(fetches.length, 2);
-  assert.equal(fetches[1].body.messages.length, 3, "Claude gets the earlier turns too");
+  assert.equal(fetches[1].body.messages.length, 3, "the AI gets the earlier turns too");
   fetches[1].reply("It's just before one in the morning.");
   await tick();
   await finishSpeaking();
@@ -284,7 +284,7 @@ test("after an answer there is a 15 second window for a follow-up with no wake p
   await finishSpeaking();
   assert.match(status(), /follow-up/i);
 
-  // No "Hey Nion" this time, and Claude gets the earlier turns too.
+  // No "Hey Nion" this time, and the AI gets the earlier turns too.
   await hear("and in Mumbai");
   assert.equal(fetches.length, 2);
   assert.equal(fetches[1].body.messages.length, 3);
@@ -357,7 +357,7 @@ test("a slow answer gets a short 'one moment' first, and the answer waits for it
   await hear("hey nion what is the latest news");
   assert.equal(fetches.length, 1);
 
-  // Two seconds pass and Claude is still searching.
+  // Two seconds pass and the AI is still searching.
   firePending(2200);
   await tick();
   assert.match(saidSoFar(), FILLER);
@@ -590,7 +590,7 @@ test("a rejected API key is explained on screen", async () => {
   await hear("hey nion what is the latest news");
   fetches[0].serverError("key");
   await tick();
-  assert.match(elements.problem.textContent, /ANTHROPIC_API_KEY/);
+  assert.match(elements.problem.textContent, /NEBIUS_API_KEY/);
 });
 
 test("pressing Escape stops Nion while it is speaking, and then it listens", async () => {

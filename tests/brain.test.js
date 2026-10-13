@@ -4,9 +4,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { askNion, completeShort } from "../server/brain.js";
-import { createClaudeProvider } from "../server/providers/claude.js";
 import { createNebiusProvider } from "../server/providers/nebius.js";
-import { configProblem, providerName } from "../server/config.js";
+import { configProblem, DEFAULT_MODEL } from "../server/config.js";
 
 // A pretend provider that returns what it is told and remembers what it was asked.
 function fakeProvider(result) {
@@ -49,33 +48,6 @@ test("the brain keeps at most eight sources", async () => {
   const sources = Array.from({ length: 12 }, (_, i) => ({ title: `S${i}`, url: `https://example.com/${i}` }));
   const result = await askNion({ messages, provider: fakeProvider({ text: "ok", sources }) });
   assert.equal(result.sources.length, 8);
-});
-
-// ---- the Claude provider ----
-
-test("the Claude provider carries on after a paused search and adds up the usage", async () => {
-  const replies = [
-    { stop_reason: "pause_turn", content: [{ type: "text", text: "Checking." }], usage: { input_tokens: 10, output_tokens: 2, server_tool_use: { web_search_requests: 1 } } },
-    { stop_reason: "end_turn", content: [{ type: "text", text: "It is sunny." }], usage: { input_tokens: 20, output_tokens: 4 } },
-  ];
-  const sent = [];
-  const client = { messages: { create: async (request) => (sent.push(request), replies[sent.length - 1]) } };
-  const provider = createClaudeProvider({ client, model: "claude-test" });
-
-  const result = await provider.ask({ system: "SYS", messages, context: {}, location: undefined });
-  assert.equal(sent.length, 2);
-  assert.equal(sent[0].model, "claude-test");
-  assert.equal(sent[1].messages.length, 2, "the paused reply is sent back");
-  assert.equal(result.text, "It is sunny.");
-  assert.equal(result.searches, 1);
-  assert.equal(result.inputTokens, 30);
-  assert.equal(result.refused, false);
-});
-
-test("the Claude provider reports a refusal", async () => {
-  const client = { messages: { create: async () => ({ stop_reason: "refusal", content: [], usage: {} }) } };
-  const result = await createClaudeProvider({ client }).ask({ system: "S", messages, context: {} });
-  assert.equal(result.refused, true);
 });
 
 // ---- the Nebius provider ----
@@ -135,14 +107,27 @@ test("the Nebius provider insists on a model name instead of guessing one", asyn
 
 // ---- the settings check ----
 
-test("the settings check says what is missing for each provider", () => {
-  assert.equal(providerName({}), "claude");
-  assert.match(configProblem({}), /ANTHROPIC_API_KEY is missing/);
-  assert.equal(configProblem({ ANTHROPIC_API_KEY: "x" }), undefined);
-  assert.match(configProblem({ NION_PROVIDER: "nebius" }), /NEBIUS_API_KEY is missing/);
-  assert.match(configProblem({ NION_PROVIDER: "nebius", NEBIUS_API_KEY: "x" }), /NION_MODEL is missing/);
-  assert.equal(configProblem({ NION_PROVIDER: "nebius", NEBIUS_API_KEY: "x", NION_MODEL: "m" }), undefined);
-  assert.match(configProblem({ NION_PROVIDER: "gpt" }), /must be one of/);
+test("the settings check says what is missing", () => {
+  assert.match(configProblem({}), /NEBIUS_API_KEY is missing/);
+  assert.match(configProblem({}), /\.env/);
+  assert.equal(configProblem({ NEBIUS_API_KEY: "x" }), undefined, "the model and everything else have defaults");
+});
+
+test("with no model chosen, Nion uses Nemotron Ultra", async () => {
+  const saved = process.env.NION_MODEL;
+  delete process.env.NION_MODEL;
+  try {
+    const sent = [];
+    const fetchImpl = async (url, options) => {
+      sent.push(JSON.parse(options.body));
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "Hi." } }] }), text: async () => "" };
+    };
+    await createNebiusProvider({ apiKey: "k", fetchImpl }).ask({ system: "S", messages });
+    assert.equal(sent[0].model, DEFAULT_MODEL);
+    assert.equal(DEFAULT_MODEL, "nvidia/Nemotron-3-Ultra-550b-a55b");
+  } finally {
+    if (saved !== undefined) process.env.NION_MODEL = saved;
+  }
 });
 
 // ---- answering one short question (used to name a place) ----
@@ -159,13 +144,6 @@ test("the Nebius provider answers one short question with no tools, and cleans t
   assert.equal("tools" in sent[0], false, "no tools for a short question");
   assert.deepEqual(sent[0].messages.map((m) => m.role), ["system", "user"]);
   await assert.rejects(createNebiusProvider({ apiKey: "k", model: "", fetchImpl }).complete("x"), /NION_MODEL/);
-});
-
-test("the Claude provider answers one short question with its small model", async () => {
-  const sent = [];
-  const client = { messages: { create: async (request) => (sent.push(request), { content: [{ type: "text", text: " Denver | Colorado | US " }] }) } };
-  assert.equal(await createClaudeProvider({ client }).complete("where?"), "Denver | Colorado | US");
-  assert.equal(sent[0].model, "claude-haiku-5-5");
 });
 
 test("completeShort asks whichever provider it is given", async () => {

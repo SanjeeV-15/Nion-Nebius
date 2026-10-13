@@ -1,4 +1,4 @@
-// Nion's instructions. This text is sent to Claude with every request and is what
+// Nion's instructions. This text is sent to the AI with every request and is what
 // makes Nion sound like a person on a phone call instead of a search engine.
 //
 // For now it holds the basic spoken-style rules and the name greeting. Later

@@ -1,5 +1,5 @@
 // Starts the real server as a separate program and checks how it behaves when
-// things are wrong. Nothing here calls Claude for real: the "Claude" address is
+// things are wrong. Nothing here calls the AI for real: its address is
 // pointed at a closed door, so these cost nothing and never need your key.
 
 import { test } from "node:test";
@@ -31,14 +31,14 @@ test("without an API key the server refuses to start and says how to fix it", as
   const { child, output } = startServer({}, 3901);
   const [code] = await once(child, "exit");
   assert.equal(code, 1);
-  assert.match(output(), /ANTHROPIC_API_KEY is missing/);
+  assert.match(output(), /NEBIUS_API_KEY is missing/);
   assert.match(output(), /\.env/);
 });
 
-test("when Claude can't be reached, the server answers with a clear problem, not a crash", async () => {
+test("when the AI service can't be reached, the server answers with a clear problem, not a crash", async () => {
   const port = 3902;
   const { child, output } = startServer(
-    { ANTHROPIC_API_KEY: "sk-ant-not-a-real-key", ANTHROPIC_BASE_URL: "http://127.0.0.1:1" },
+    { NEBIUS_API_KEY: "not-a-real-key", NION_MODEL: "m", NEBIUS_BASE_URL: "http://127.0.0.1:1" },
     port
   );
   try {
@@ -55,7 +55,7 @@ test("when Claude can't be reached, the server answers with a clear problem, not
     });
     assert.equal(bad.status, 400);
 
-    // A good request, but Claude can't be reached: a clear 502, and the server keeps running.
+    // A good request, but the AI service can't be reached: a clear 502, and the server keeps running.
     const failed = await fetch(`${base}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -72,7 +72,7 @@ test("when Claude can't be reached, the server answers with a clear problem, not
 test("the server turns away messages that are too long or in the wrong order", async () => {
   const port = 3903;
   const { child, output } = startServer(
-    { ANTHROPIC_API_KEY: "sk-ant-not-a-real-key", ANTHROPIC_BASE_URL: "http://127.0.0.1:1" },
+    { NEBIUS_API_KEY: "not-a-real-key", NION_MODEL: "m", NEBIUS_BASE_URL: "http://127.0.0.1:1" },
     port
   );
   try {
