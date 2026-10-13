@@ -24,6 +24,17 @@ export function createClaudeProvider({ client, model: defaultModel } = {}) {
 
   return {
     name: "claude",
+    /** Answers one short question with a small, fast model (used to name a place from GPS). */
+    async complete(prompt) {
+      sdk ??= new Anthropic();
+      const response = await sdk.messages.create({
+        model: "claude-haiku-5-5",
+        max_tokens: 1000, // generous on purpose: the model may spend some of it thinking first
+        output_config: { effort: "low" },
+        messages: [{ role: "user", content: prompt }],
+      });
+      return response.content.filter((block) => block.type === "text").map((block) => block.text).join("").trim();
+    },
     // Claude searches the web by itself (see ../search.js).
     abilities: { search: true },
 

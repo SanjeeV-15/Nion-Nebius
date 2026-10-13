@@ -51,14 +51,14 @@ export function describePlace(place) {
   return [place?.area, place?.city, place?.region, place?.country].filter(Boolean).join(", ");
 }
 
-async function fromNominatim(lat, lon) {
+async function fromNominatim(lat, lon, fetchImpl = fetch) {
   // Be polite: at least a second between requests.
   const wait = lastRequestAt + 1100 - Date.now();
   if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   lastRequestAt = Date.now();
 
   const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&addressdetails=1&lat=${lat}&lon=${lon}`;
-  const response = await fetch(url, {
+  const response = await fetchImpl(url, {
     headers: { "User-Agent": "Nion/0.1 (hackathon demo; github.com/SanjeeV-15)" },
     signal: AbortSignal.timeout(4000),
   });
@@ -66,31 +66,23 @@ async function fromNominatim(lat, lon) {
   return placeFromNominatim(await response.json());
 }
 
-async function fromClaude(client, lat, lon) {
-  const response = await client.messages.create({
-    model: "claude-haiku-5-5",
-    // Generous on purpose: the model may spend some of this thinking first.
-    max_tokens: 1000,
-    output_config: { effort: "low" },
-    messages: [
-      {
-        role: "user",
-        content:
-          `GPS coordinates: ${lat.toFixed(4)},${lon.toFixed(4)}. ` +
-          "Reply with only: city | state or region | two-letter country code. " +
-          "Use a dash for any part you are not sure of.",
-      },
-    ],
-  });
-  const line = response.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-  return parsePlaceLine(line);
+// The fallback when OpenStreetMap can't help: ask the AI that Nion is configured with
+// (Nemotron on Nebius, or Claude). `complete` takes a question and returns its short answer.
+async function fromModel(complete, lat, lon) {
+  const line = await complete(
+    `GPS coordinates: ${lat.toFixed(4)},${lon.toFixed(4)}. ` +
+      "Reply with only: city | state or region | two-letter country code. " +
+      "Use a dash for any part you are not sure of."
+  );
+  return parsePlaceLine(String(line ?? "").trim());
 }
 
 /**
- * Name the place for some coordinates. `client` is the Claude client (the fallback).
+ * Name the place for some coordinates. `complete(question)` asks the configured AI, and is
+ * only used as the fallback when OpenStreetMap can't name the place. `fetchImpl` is for tests.
  * Returns { area?, city, region?, country? } or null if it couldn't be worked out.
  */
-export async function resolvePlace(client, lat, lon) {
+export async function resolvePlace(complete, lat, lon, { fetchImpl = fetch } = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
 
   // Three decimal places is about a hundred metres: close enough to share an answer.
@@ -99,15 +91,15 @@ export async function resolvePlace(client, lat, lon) {
 
   let place = null;
   try {
-    place = await fromNominatim(lat, lon);
+    place = await fromNominatim(lat, lon, fetchImpl);
   } catch (error) {
-    console.error("Place lookup (OpenStreetMap) failed, trying Claude:", error?.message ?? error);
+    console.error("Place lookup (OpenStreetMap) failed, asking the AI instead:", error?.message ?? error);
   }
   if (!place) {
     try {
-      place = await fromClaude(client, lat, lon);
+      place = await fromModel(complete, lat, lon);
     } catch (error) {
-      console.error("Place lookup (Claude) failed:", error?.message ?? error);
+      console.error("Place lookup (AI fallback) failed:", error?.message ?? error);
     }
   }
 

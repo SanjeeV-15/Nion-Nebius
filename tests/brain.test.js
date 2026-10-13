@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { askNion } from "../server/brain.js";
+import { askNion, completeShort } from "../server/brain.js";
 import { createClaudeProvider } from "../server/providers/claude.js";
 import { createNebiusProvider } from "../server/providers/nebius.js";
 import { configProblem, providerName } from "../server/config.js";
@@ -143,4 +143,31 @@ test("the settings check says what is missing for each provider", () => {
   assert.match(configProblem({ NION_PROVIDER: "nebius", NEBIUS_API_KEY: "x" }), /NION_MODEL is missing/);
   assert.equal(configProblem({ NION_PROVIDER: "nebius", NEBIUS_API_KEY: "x", NION_MODEL: "m" }), undefined);
   assert.match(configProblem({ NION_PROVIDER: "gpt" }), /must be one of/);
+});
+
+// ---- answering one short question (used to name a place) ----
+
+test("the Nebius provider answers one short question with no tools, and cleans the reply", async () => {
+  const sent = [];
+  const fetchImpl = async (url, options) => {
+    sent.push(JSON.parse(options.body));
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "<think>hmm</think>Miami | Florida | US" } }] }), text: async () => "" };
+  };
+  const provider = createNebiusProvider({ apiKey: "k", model: "big", fetchImpl, tools: [{ name: "web_search", description: "d", parameters: {}, run: async () => "" }] });
+  assert.equal(await provider.complete("where is 25,-80?"), "Miami | Florida | US");
+  assert.equal(sent[0].model, "big");
+  assert.equal("tools" in sent[0], false, "no tools for a short question");
+  assert.deepEqual(sent[0].messages.map((m) => m.role), ["system", "user"]);
+  await assert.rejects(createNebiusProvider({ apiKey: "k", model: "", fetchImpl }).complete("x"), /NION_MODEL/);
+});
+
+test("the Claude provider answers one short question with its small model", async () => {
+  const sent = [];
+  const client = { messages: { create: async (request) => (sent.push(request), { content: [{ type: "text", text: " Denver | Colorado | US " }] }) } };
+  assert.equal(await createClaudeProvider({ client }).complete("where?"), "Denver | Colorado | US");
+  assert.equal(sent[0].model, "claude-haiku-5-5");
+});
+
+test("completeShort asks whichever provider it is given", async () => {
+  assert.equal(await completeShort("q", { complete: async (p) => `answer to ${p}` }), "answer to q");
 });

@@ -23,11 +23,9 @@ if (providerName() === "nebius" && !process.env.TAVILY_API_KEY) {
 }
 
 // Loaded after the settings check so a missing key gives the message above.
-const { askNion } = await import("./brain.js");
+const { askNion, completeShort } = await import("./brain.js");
 const { resolvePlace, describePlace, cleanPlacePart } = await import("./place.js");
 const { classifyFailure } = await import("./failure.js");
-const { default: Anthropic } = await import("@anthropic-ai/sdk");
-const claude = new Anthropic();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -87,7 +85,7 @@ async function resolveLocation(raw) {
   if (!raw || typeof raw !== "object") return null;
 
   if (Number.isFinite(raw.lat) && Number.isFinite(raw.lon)) {
-    const place = await resolvePlace(claude, raw.lat, raw.lon);
+    const place = await resolvePlace(completeShort, raw.lat, raw.lon);
     return place ? { ...place, text: describePlace(place), fromGps: true } : { failed: true };
   }
 

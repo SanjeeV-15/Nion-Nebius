@@ -26,6 +26,12 @@ export function createProvider(env = process.env) {
 
 let defaultProvider;
 
+/** Ask the configured AI one short question (no tools, no conversation), for small jobs like naming a place. */
+export async function completeShort(prompt, provider) {
+  provider ??= defaultProvider ??= createProvider();
+  return provider.complete(prompt);
+}
+
 /**
  * Ask the AI for Nion's reply.
  *   messages: the conversation so far, [{ role: "user" | "assistant", content: "..." }]

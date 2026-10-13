@@ -154,6 +154,23 @@ export function createNebiusProvider({
 
   return {
     name: "nebius",
+    /** Answers one short question (used to name a place from GPS). No tools, one quick request. */
+    async complete(prompt, { model } = {}) {
+      const useModel = model || defaultModel;
+      if (!useModel) throw new Error("No model chosen: set NION_MODEL in .env to a Token Factory model name.");
+      const data = await send(
+        {
+          model: useModel,
+          max_tokens: 300,
+          messages: [
+            { role: "system", content: "Reply with only what is asked, on one line." },
+            { role: "user", content: prompt },
+          ],
+        },
+        8_000
+      );
+      return cleanSpoken(data.choices?.[0]?.message?.content);
+    },
     // What Nion may claim it can do (see prompt.js).
     abilities: {
       search: tools.some((tool) => tool.name === "web_search"),
