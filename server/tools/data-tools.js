@@ -148,7 +148,7 @@ export function createDataTools() {
       run({ to, subject, body }) {
         if (!body || typeof body !== "string") return say("Not saved: the draft was empty.");
         return {
-          text: "Draft saved. It has not been sent.",
+          text: "Draft saved in the notebook. Nion cannot send email, so tell the person it is only saved, and that they can read and copy it on the Notebook page.",
           ops: [{ op: "save_draft", item: { id: newId(), to: String(to ?? ""), subject: String(subject ?? ""), body, at: new Date().toISOString() } }],
         };
       },

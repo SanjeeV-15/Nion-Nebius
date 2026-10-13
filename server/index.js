@@ -121,7 +121,8 @@ app.post("/api/chat", async (req, res) => {
     // search costs about a cent).
     console.log(
       `Answered: ${usage.searches} search(es), ${usage.inputTokens} tokens in, ${usage.outputTokens} out` +
-        (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "")
+        (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "") +
+        (usage.fellBack ? ", answered by the fallback model" : "")
     );
     if (needsLocation) return res.json({ needsLocation: true });
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.

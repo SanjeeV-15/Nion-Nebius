@@ -103,3 +103,12 @@ test("describeData gives Nion everything it needs to answer from the notebook", 
   assert.match(text, /Spending today \(2026-10-13\): 12\.00 USD \(food 12\.00\)/);
   assert.match(text, /12\.00 USD food \(lunch\)/);
 });
+
+test("an email draft keeps its paragraphs, but other text is still flattened", () => {
+  const data = cleanData({
+    drafts: [{ id: "d1", to: "Maria\nSmith", subject: "Late\n  today", body: "Hi Maria,\r\n\r\n\r\n\r\nI'll   be late.\n  Best,\nSanjeev  " }],
+  });
+  assert.equal(data.drafts[0].body, "Hi Maria,\n\nI'll be late.\nBest,\nSanjeev");
+  assert.equal(data.drafts[0].to, "Maria Smith");
+  assert.equal(data.drafts[0].subject, "Late today");
+});

@@ -1,0 +1,13 @@
+# Never put secrets or clutter in the image.
+.env
+.env.*
+!.env.example
+.git
+.tools
+node_modules
+tests
+scripts
+docs
+devpost
+agent
+*.md

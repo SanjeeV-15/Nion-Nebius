@@ -73,7 +73,8 @@ test("remember, don't repeat, and forget", () => {
 test("save_draft only saves: the confirmation says it was not sent", () => {
   const result = tools.save_draft.run({ to: "Maria", subject: "Running late", body: "Hi Maria, I'll be about ten minutes late." }, withData());
   assert.equal(result.ops[0].item.to, "Maria");
-  assert.match(result.text, /not been sent/);
+  assert.match(result.text, /cannot send email/);
+  assert.match(result.text, /Notebook page/);
   assert.deepEqual(tools.save_draft.run({ body: "" }, withData()).ops, []);
 });
 

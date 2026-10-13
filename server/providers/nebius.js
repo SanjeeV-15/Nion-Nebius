@@ -26,6 +26,19 @@ const MAX_ROUNDS = 4;
 // Everything for one question must finish within this. (The page gives up at 25 seconds.)
 const TOTAL_BUDGET_MS = 22_000;
 
+// The main model is given this long per request. Past it (or if it is overloaded), the
+// same request is retried on a smaller, faster model, because in testing the big model
+// sometimes took 11 to 20 seconds, and a long silence feels broken in a voice chat.
+const PRIMARY_TIMEOUT_MS = 8_000;
+const DEFAULT_FALLBACK_MODEL = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B";
+
+// Slow or overloaded is worth a second try on another model. A rejected key or a bad
+// request (401, 400...) would fail the same way on any model, so those are not retried.
+function worthRetrying(error) {
+  const status = error?.status;
+  return error?.name === "TimeoutError" || error?.name === "AbortError" || status === 429 || status >= 500 || status === undefined;
+}
+
 // Some models write their thinking inside <think>...</think> before the answer.
 // Nion reads everything aloud, so the thinking must never reach the speech voice.
 function stripThinking(text) {
@@ -49,6 +62,9 @@ export function createNebiusProvider({
   model: defaultModel = process.env.NION_MODEL,
   fetchImpl = fetch,
   tools = [],
+  // Set NION_FALLBACK_MODEL=none to turn the fallback off.
+  fallbackModel = process.env.NION_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL,
+  primaryTimeoutMs = PRIMARY_TIMEOUT_MS,
 } = {}) {
   const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const toolDefinitions = tools.map((tool) => ({
@@ -56,12 +72,12 @@ export function createNebiusProvider({
     function: { name: tool.name, description: tool.description, parameters: tool.parameters },
   }));
 
-  async function request(body, deadline) {
+  async function send(body, timeoutMs) {
     const response = await fetchImpl(new URL("chat/completions", base), {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+      signal: AbortSignal.timeout(Math.max(1, timeoutMs)),
     });
     if (!response.ok) {
       const error = new Error(`Nebius request failed (${response.status}): ${(await response.text()).slice(0, 200)}`);
@@ -69,6 +85,23 @@ export function createNebiusProvider({
       throw error;
     }
     return response.json();
+  }
+
+  // One request. The main model gets a short time limit; if it is too slow or
+  // overloaded, the same request goes to the fallback model, and that model is then
+  // used for the rest of this question so the conversation stays consistent.
+  async function request(body, deadline, state) {
+    const remaining = () => deadline - Date.now();
+    const canFallBack = state.model === state.primary && state.fallback && state.fallback !== state.primary;
+    try {
+      return await send({ ...body, model: state.model }, canFallBack ? Math.min(primaryTimeoutMs, remaining()) : remaining());
+    } catch (error) {
+      if (!canFallBack || !worthRetrying(error)) throw error;
+      console.warn(`Nebius: ${state.primary} was slow or unavailable (${error?.name === "TimeoutError" ? "timeout" : error?.status ?? error?.name}); using ${state.fallback}.`);
+      state.model = state.fallback;
+      state.fellBack = true;
+      return send({ ...body, model: state.model }, remaining());
+    }
   }
 
   // A tool can limit how often it may be used per question (`maxCalls`), because every
@@ -123,6 +156,8 @@ export function createNebiusProvider({
       if (!useModel) throw new Error("No model chosen: set NION_MODEL in .env to a Token Factory model name.");
 
       const deadline = Date.now() + TOTAL_BUDGET_MS;
+      const fallback = fallbackModel && fallbackModel.toLowerCase() !== "none" ? fallbackModel : undefined;
+      const state = { primary: useModel, model: useModel, fallback, fellBack: false };
       const thread = [{ role: "system", content: system }, ...messages];
       const totals = { searches: 0, sources: [], errors: [], ops: [], inputTokens: 0, outputTokens: 0 };
       const ctx = { context, location, data: data ?? emptyData() }; // what the tools can see
@@ -130,11 +165,11 @@ export function createNebiusProvider({
       let text = "";
 
       for (let round = 1; round <= MAX_ROUNDS; round++) {
-        const body = { model: useModel, messages: thread, max_tokens: MAX_TOKENS };
+        const body = { messages: thread, max_tokens: MAX_TOKENS };
         const available = offered(used);
         if (available.length > 0 && round < MAX_ROUNDS) body.tools = available;
 
-        const data = await request(body, deadline);
+        const data = await request(body, deadline, state);
         totals.inputTokens += data.usage?.prompt_tokens ?? 0;
         totals.outputTokens += data.usage?.completion_tokens ?? 0;
 
@@ -172,6 +207,7 @@ export function createNebiusProvider({
         outputTokens: totals.outputTokens,
         searchErrors: totals.errors,
         ops: totals.ops,
+        fellBack: state.fellBack,
         refused: false,
       };
     },

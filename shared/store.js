@@ -20,6 +20,11 @@ export function emptyData() {
 // ---------- cleaning (the data arrives from a browser, so it is never trusted) ----------
 
 const text = (value, max) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "");
+// Like text(), but keeps line breaks (at most one blank line in a row): an email needs its paragraphs.
+const multiline = (value, max) =>
+  typeof value === "string"
+    ? value.replace(/\r\n?/g, "\n").replace(/[^\S\n]+/g, " ").replace(/ ?\n ?/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, max)
+    : "";
 const keepNewest = (list, max) => (list.length > max ? list.slice(list.length - max) : list);
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,7 +62,7 @@ function cleanListItem(raw) {
 
 function cleanDraft(raw) {
   const id = cleanId(raw?.id);
-  const body = text(raw?.body, 1200);
+  const body = multiline(raw?.body, 1200);
   if (!id || !body) return null;
   return { id, to: text(raw.to, 80), subject: text(raw.subject, 120), body, at: text(raw.at, 30) };
 }
@@ -85,6 +90,9 @@ export function cleanData(raw) {
 //   add_item        { list, item: { id, text, at } }
 //   complete_item   { list, id }
 //   remove_item     { list, id }
+//   reopen_item     { list, id }        (untick: used by the Notebook page)
+//   remove_expense  { id }              (used by the Notebook page)
+//   remove_draft    { id }              (used by the Notebook page)
 //   save_draft      { item: { id, to, subject, body, at } }
 
 /** Returns a new notebook with the changes applied. Unknown or invalid changes are skipped. */
@@ -112,6 +120,15 @@ export function applyOps(data, ops = []) {
       }
       case "complete_item":
         if (LISTS.includes(op.list)) next.lists[op.list] = next.lists[op.list].map((i) => (i.id === op.id ? { ...i, done: true } : i));
+        break;
+      case "reopen_item":
+        if (LISTS.includes(op.list)) next.lists[op.list] = next.lists[op.list].map((i) => (i.id === op.id ? { ...i, done: false } : i));
+        break;
+      case "remove_expense":
+        next.expenses = next.expenses.filter((e) => e.id !== op.id);
+        break;
+      case "remove_draft":
+        next.drafts = next.drafts.filter((d) => d.id !== op.id);
         break;
       case "remove_item":
         if (LISTS.includes(op.list)) next.lists[op.list] = next.lists[op.list].filter((i) => i.id !== op.id);
@@ -169,6 +186,11 @@ export function describeDay(data, day) {
       return `${money(total, currency)} (${parts})`;
     })
     .join("; ");
+}
+
+/** The days that have expenses, newest first, as "YYYY-MM-DD" (expenses with no day come last as ""). */
+export function expenseDays(data) {
+  return [...new Set(data.expenses.map((e) => e.day))].sort().reverse().sort((a, b) => (a === "") - (b === ""));
 }
 
 // ---------- what Nion is told about the notebook, every turn ----------

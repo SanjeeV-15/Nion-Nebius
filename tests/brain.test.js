@@ -29,7 +29,7 @@ test("the brain passes Nion's instructions and the conversation to the provider"
   assert.deepEqual(provider.calls[0].messages, messages);
   assert.match(provider.calls[0].system, /You are Nion/);
   assert.match(provider.calls[0].system, /Sanjeev/);
-  assert.deepEqual(result.usage, { searches: 0, inputTokens: 5, outputTokens: 7, searchErrors: [] });
+  assert.deepEqual(result.usage, { searches: 0, inputTokens: 5, outputTokens: 7, searchErrors: [], fellBack: false });
 });
 
 test("the brain asks the page to find out where the person is when the AI says so", async () => {
