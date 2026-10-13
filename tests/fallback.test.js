@@ -103,8 +103,8 @@ test("once on the fallback, the rest of the question stays on it", async () => {
   assert.equal(result.fellBack, true);
 });
 
-test("with no fallback, or the fallback set to the same model, a failure is reported", async () => {
-  for (const fallbackModel of ["none", "big", ""]) {
+test("with the fallback turned off, a failure is reported", async () => {
+  for (const fallbackModel of ["none", "NONE", ""]) {
     const { fetchImpl, models } = service(() => {
       throw timeoutError();
     });
@@ -113,6 +113,39 @@ test("with no fallback, or the fallback set to the same model, a failure is repo
       (error) => error.name === "TimeoutError"
     );
     assert.equal(models.length, 1, `fallback "${fallbackModel}": only the main model is tried`);
+  }
+});
+
+test("'same' (the default) tries the main model once more, because a slow moment often passes", async () => {
+  for (const setting of ["same", "SAME", "big"]) {
+    let calls = 0;
+    const { fetchImpl, models } = service(() => {
+      if (++calls === 1) throw timeoutError();
+      return say("Second time lucky.");
+    });
+    const { result } = await quietly(() => make(fetchImpl, { fallbackModel: setting }).ask({ system: "S", messages }));
+    assert.deepEqual(models, ["big", "big"], `setting ${setting}`);
+    assert.equal(result.text, "Second time lucky.");
+    assert.equal(result.fellBack, true);
+  }
+  // And it does not retry forever: a second failure is reported.
+  const { fetchImpl: alwaysSlow, models } = service(() => {
+    throw timeoutError();
+  });
+  await assert.rejects(quietly(() => make(alwaysSlow, { fallbackModel: "same" }).ask({ system: "S", messages })), (e) => e.name === "TimeoutError");
+  assert.equal(models.length, 2);
+});
+
+test("with nothing set, the default is to retry the same model, not to switch to a slower one", async () => {
+  const saved = process.env.NION_FALLBACK_MODEL;
+  delete process.env.NION_FALLBACK_MODEL;
+  try {
+    let calls = 0;
+    const { fetchImpl, models } = service(() => (++calls === 1 ? (() => { throw timeoutError(); })() : say("ok")));
+    await quietly(() => createNebiusProvider({ apiKey: "k", model: "big", fetchImpl }).ask({ system: "S", messages }));
+    assert.deepEqual(models, ["big", "big"]);
+  } finally {
+    if (saved !== undefined) process.env.NION_FALLBACK_MODEL = saved;
   }
 });
 

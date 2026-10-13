@@ -97,7 +97,7 @@ async function runOnce(modelId) {
       messages.push({ role: "assistant", content: r.reply });
       const w = words(r.reply);
       const problem = !r.reply || /didn't catch that/.test(r.reply) ? "empty reply" : w > WORD_LIMIT ? `too long (${w} words)` : scenario.fails(r);
-      row = { ...row, seconds: (performance.now() - started) / 1000, words: w, searches: r.searches, ok: !problem, problem };
+      row = { ...row, seconds: (performance.now() - started) / 1000, words: w, searches: r.searches, tokensIn: r.usage.inputTokens, tokensOut: r.usage.outputTokens, ok: !problem, problem };
     } catch (error) {
       messages.pop();
       row = { ...row, seconds: (performance.now() - started) / 1000, words: 0, searches: 0, ok: false, problem: `error ${error.status ?? error.name ?? ""}` };
@@ -126,7 +126,8 @@ for (const key of modelKeys) {
     lines.push(`| ${scenario.name} | ${median(rows.map((r) => r.seconds)).toFixed(1)} | ${Math.max(...rows.map((r) => r.seconds)).toFixed(1)} | ${median(rows.map((r) => r.words))} | ${passed}/${rows.length}${problems ? ` (${problems})` : ""} |`);
   }
   const times = all.map((r) => r.seconds);
-  lines.push(``, `Overall: ${all.filter((r) => r.ok).length}/${all.length} passed; median ${median(times).toFixed(1)} s, slowest ${Math.max(...times).toFixed(1)} s.`, ``);
+  const sum = (field) => all.reduce((total, r) => total + (r[field] ?? 0), 0);
+  lines.push(``, `Overall: ${all.filter((r) => r.ok).length}/${all.length} passed; median ${median(times).toFixed(1)} s, slowest ${Math.max(...times).toFixed(1)} s. Tokens used: ${sum("tokensIn")} in, ${sum("tokensOut")} out; Tavily searches: ${sum("searches")}.`, ``);
 }
 console.log("\n" + lines.join("\n"));
 if (flag("write") && !live) console.log("Not saved: --write only saves a --live run, so pretend numbers never replace real ones.");

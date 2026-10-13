@@ -30,7 +30,10 @@ const TOTAL_BUDGET_MS = 22_000;
 // same request is retried on a smaller, faster model, because in testing the big model
 // sometimes took 11 to 20 seconds, and a long silence feels broken in a voice chat.
 const PRIMARY_TIMEOUT_MS = 8_000;
-const DEFAULT_FALLBACK_MODEL = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B";
+// What to do when the main model is slow: "same" tries it once more (the default),
+// "none" gives up, or name another model. Measured: the small Nano model is slower than
+// Ultra on search questions (a median of 12.7 s against 3.3 s), so it is not the default.
+const DEFAULT_FALLBACK = "same";
 
 // Slow or overloaded is worth a second try on another model. A rejected key or a bad
 // request (401, 400...) would fail the same way on any model, so those are not retried.
@@ -41,8 +44,14 @@ function worthRetrying(error) {
 
 // Some models write their thinking inside <think>...</think> before the answer.
 // Nion reads everything aloud, so the thinking must never reach the speech voice.
+// A thinking block that was cut off before it closed (the model ran out of room) is thinking
+// too: everything from its opening tag to the end is dropped, never spoken.
 function stripThinking(text) {
-  return text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^[\s\S]*<\/think>/, "").trim();
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/^[\s\S]*<\/think>/, "")
+    .replace(/<think>[\s\S]*$/, "")
+    .trim();
 }
 
 // A model with no search tool sometimes writes a search request as text, like
@@ -63,7 +72,7 @@ export function createNebiusProvider({
   fetchImpl = fetch,
   tools = [],
   // Set NION_FALLBACK_MODEL=none to turn the fallback off.
-  fallbackModel = process.env.NION_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL,
+  fallbackModel = process.env.NION_FALLBACK_MODEL || DEFAULT_FALLBACK,
   primaryTimeoutMs = PRIMARY_TIMEOUT_MS,
 } = {}) {
   const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
@@ -92,12 +101,12 @@ export function createNebiusProvider({
   // used for the rest of this question so the conversation stays consistent.
   async function request(body, deadline, state) {
     const remaining = () => deadline - Date.now();
-    const canFallBack = state.model === state.primary && state.fallback && state.fallback !== state.primary;
+    const canFallBack = state.model === state.primary && Boolean(state.fallback);
     try {
       return await send({ ...body, model: state.model }, canFallBack ? Math.min(primaryTimeoutMs, remaining()) : remaining());
     } catch (error) {
       if (!canFallBack || !worthRetrying(error)) throw error;
-      console.warn(`Nebius: ${state.primary} was slow or unavailable (${error?.name === "TimeoutError" ? "timeout" : error?.status ?? error?.name}); using ${state.fallback}.`);
+      console.warn(`Nebius: ${state.primary} was slow or unavailable (${error?.name === "TimeoutError" ? "timeout" : error?.status ?? error?.name}); ${state.fallback === state.primary ? "trying it once more" : `using ${state.fallback}`}.`);
       state.model = state.fallback;
       state.fellBack = true;
       return send({ ...body, model: state.model }, remaining());
@@ -156,7 +165,8 @@ export function createNebiusProvider({
       if (!useModel) throw new Error("No model chosen: set NION_MODEL in .env to a Token Factory model name.");
 
       const deadline = Date.now() + TOTAL_BUDGET_MS;
-      const fallback = fallbackModel && fallbackModel.toLowerCase() !== "none" ? fallbackModel : undefined;
+      const wish = (fallbackModel ?? "").trim();
+      const fallback = !wish || wish.toLowerCase() === "none" ? undefined : wish.toLowerCase() === "same" ? useModel : wish;
       const state = { primary: useModel, model: useModel, fallback, fellBack: false };
       const thread = [{ role: "system", content: system }, ...messages];
       const totals = { searches: 0, sources: [], errors: [], ops: [], inputTokens: 0, outputTokens: 0 };

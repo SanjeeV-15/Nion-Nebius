@@ -93,6 +93,14 @@ test("an unknown tool or unreadable tool input is reported back to the AI, not c
   assert.match(garbled.sent[1].messages.at(-1).content, /not valid/);
 });
 
+test("a thinking block that was cut off before it closed is never spoken either", async () => {
+  for (const content of ["<think>let me work out the answer step by step and then", "Sure. <think>half a thought", "<think>done</think>The answer.<think>and more"]) {
+    const { fetchImpl } = scriptedFetch([say(content), say("Retried answer.")]);
+    const result = await createNebiusProvider({ apiKey: "k", model: "m", fetchImpl }).ask({ system: "S", messages });
+    assert.doesNotMatch(result.text, /think|step by step|half a thought|and more/, content);
+  }
+});
+
 test("a search request written out as text is never spoken", async () => {
   const { fetchImpl } = scriptedFetch([say('Hey Sanjeev, I\'ll look that up. {"query": "restaurants Brickell Miami", "recency_days": 30}')]);
   const result = await createNebiusProvider({ apiKey: "k", model: "m", fetchImpl }).ask({ system: "S", messages });
