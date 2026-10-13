@@ -8,6 +8,7 @@
 
 import { randomUUID } from "node:crypto";
 import { LISTS, LIST_NAMES, LIMITS, describeDay, findByText } from "../../shared/store.js";
+import { describeWhen, isTimeZone, localToUtc } from "../../shared/time.js";
 
 const newId = () => randomUUID().slice(0, 8);
 const listEnum = { type: "string", enum: LISTS, description: "todo = to-do list; visit = places to visit." };
@@ -130,6 +131,67 @@ export function createDataTools() {
       },
     },
     {
+      name: "set_reminder",
+      description:
+        "Set a reminder that Nion will speak aloud when the time comes (only while Nion is open and turned on). " +
+        "Give minutes_from_now for 'in 20 minutes', or at_local for a clock time.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "What to remind them of, in a few words." },
+          minutes_from_now: { type: "number", description: "How many minutes from now." },
+          at_local: { type: "string", description: "The time on the person's own clock as YYYY-MM-DD HH:MM, 24-hour, in their time zone." },
+        },
+        required: ["text"],
+      },
+      run({ text, minutes_from_now, at_local }, { data, context }) {
+        const what = typeof text === "string" ? text.replace(/\s+/g, " ").trim().slice(0, 120) : "";
+        if (!what) return say("Not set: there was nothing to remind them of.");
+        const zone = isTimeZone(context?.timeZone) ? context.timeZone : "UTC";
+        const now = Date.parse(context?.nowISO) || Date.now();
+
+        let due;
+        if (minutes_from_now !== undefined && minutes_from_now !== null && minutes_from_now !== "" && Number.isFinite(Number(minutes_from_now))) {
+          due = now + Number(minutes_from_now) * 60_000;
+        } else if (at_local) {
+          due = localToUtc(at_local, zone);
+          if (due === null) return say("Not set: that is not a time I can use. Ask the person what time they mean.");
+        } else {
+          return say("Not set: I need to know when. Ask the person what time they want.");
+        }
+
+        if (due <= now + 20_000) return say("Not set: that time has already passed. Ask the person for a later time.");
+        if (due > now + 366 * 86_400_000) return say("Not set: that is more than a year away. Ask the person for a nearer time.");
+        const open = data.reminders.filter((r) => !r.done);
+        if (open.length >= LIMITS.reminders) return say("Not set: there are too many reminders already. Ask the person to cancel one.");
+        const dueAt = new Date(due).toISOString();
+        if (open.some((r) => r.text.toLowerCase() === what.toLowerCase() && Math.abs(Date.parse(r.dueAt) - due) < 60_000)) {
+          return say("That reminder is already set.");
+        }
+        return {
+          text: `Reminder set for ${describeWhen(due, now, zone)}: ${what}. Say the time back in a few words, and say it will only be spoken while Nion is still open.`,
+          ops: [{ op: "add_reminder", item: { id: newId(), text: what, dueAt, at: new Date(now).toISOString() } }],
+        };
+      },
+    },
+    {
+      name: "cancel_reminder",
+      description: "Cancel a reminder that has not been spoken yet.",
+      parameters: {
+        type: "object",
+        properties: { text: { type: "string", description: "Which reminder, in a few words." } },
+        required: ["text"],
+      },
+      run({ text }, { data }) {
+        const open = data.reminders.filter((r) => !r.done);
+        const found = findByText(open, text);
+        if (!found) {
+          return say(open.length ? `I couldn't find that. The reminders are: ${open.map((r) => r.text).join(", ")}.` : "There are no reminders to cancel.");
+        }
+        return { text: `Cancelled: ${found.text}.`, ops: [{ op: "remove_reminder", id: found.id }] };
+      },
+    },
+    {
       name: "save_draft",
       description:
         "Save an email draft (never sent): a short, polite email in the person's voice, with a subject.",
@@ -145,7 +207,7 @@ export function createDataTools() {
       run({ to, subject, body }) {
         if (!body || typeof body !== "string") return say("Not saved: the draft was empty.");
         return {
-          text: "Draft saved in the notebook. Nion cannot send email, so tell the person it is only saved, and that they can read and copy it on the Notebook page.",
+          text: "Draft saved. Nion cannot send email, so tell the person it is only saved, and offer to read it back to them.",
           ops: [{ op: "save_draft", item: { id: newId(), to: String(to ?? ""), subject: String(subject ?? ""), body, at: new Date().toISOString() } }],
         };
       },

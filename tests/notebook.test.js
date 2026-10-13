@@ -184,3 +184,25 @@ test("a list with nothing open has no Share button", async () => {
   await openNotebook(emptyData());
   assert.equal(buttonsLabelled(root, "Share").length, 0);
 });
+
+// --- Reminders on the Notebook page ---------------------------------------------------
+
+test("the Notebook page lists upcoming reminders, lets you cancel one, and hides the ones already spoken", async () => {
+  const soon = new Date(Date.now() + 20 * 60_000).toISOString();
+  const done = new Date(Date.now() - 60_000).toISOString();
+  const data = applyOps(emptyData(), [
+    { op: "add_reminder", item: { id: "r1", text: "call the bank", dueAt: soon } },
+    { op: "add_reminder", item: { id: "r2", text: "already said", dueAt: done } },
+    { op: "complete_reminder", id: "r2" },
+  ]);
+  await openNotebook(data);
+  const text = textOf(root);
+  assert.match(text, /Reminders \(Nion says them aloud while it is open\)/);
+  assert.match(text, /call the bank · in (19|20) minutes/);
+  assert.doesNotMatch(text, /already said/);
+
+  buttonsLabelled(root, "Cancel")[0].click();
+  assert.equal(saved().reminders.length, 1, "only the cancelled one is gone");
+  assert.equal(saved().reminders[0].id, "r2");
+  assert.match(textOf(root), /No reminders\. Ask Nion to remind you/);
+});

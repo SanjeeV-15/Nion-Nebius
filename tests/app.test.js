@@ -877,3 +877,60 @@ test("when the daily or hourly limit is hit, the screen explains and Nion says i
     assert.doesNotMatch(saidSoFar(), /trouble reaching/, "not mistaken for an outage");
   }
 });
+
+// --- Spoken reminders -------------------------------------------------------------------
+
+const dueReminder = (id, text, msFromNow) => ({ id, text, dueAt: new Date(Date.now() + msFromNow).toISOString() });
+const reminderNotebook = (...reminders) => ({ reminders });
+const sleep = (ms) => new Promise((resolve) => realSetTimeout(resolve, ms));
+
+test("a reminder that came due while Nion was closed is said when Nion is turned on, with the time it was for", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": reminderNotebook(dueReminder("r1", "call the bank", -10 * 60_000)) } });
+  assert.match(saidSoFar(), /You had a reminder: call the bank, which was for \d{1,2}:\d{2} (AM|PM)\./);
+  assert.equal(JSON.parse(storage.get("nion.data")).reminders[0].done, true, "marked, so it is not said again");
+  assert.match(elements["ex-a"].textContent, /Nion: You had a reminder: call the bank/);
+});
+
+test("a reminder that comes due while Nion is open and idle is said at the next check", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": reminderNotebook(dueReminder("r1", "buy milk", 60)) } });
+  assert.doesNotMatch(saidSoFar(), /buy milk/, "not due yet");
+  await sleep(120);
+  firePending(5000); // the page looks for due reminders every five seconds
+  await tick();
+  assert.match(saidSoFar(), /Reminder: buy milk\./);
+  assert.doesNotMatch(saidSoFar(), /You had a reminder/, "it is on time, so it is not called late");
+  firePending(5000);
+  await tick();
+  assert.equal(spoken.filter((line) => /buy milk/.test(line)).length, 1, "said once");
+});
+
+test("a reminder never cuts across Nion's own answer: it waits until Nion is free", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what time is it in Denver");
+  fetches[0].reply("It's one seventeen in Denver right now.");
+  await tick();
+  assert.equal(pending.length, 1, "Nion is speaking");
+
+  storage.set("nion.data", JSON.stringify(reminderNotebook(dueReminder("r1", "buy milk", -1000))));
+  firePending(5000);
+  await tick();
+  assert.doesNotMatch(saidSoFar(), /buy milk/, "not while Nion is talking");
+
+  await finishSpeaking();
+  firePending(5000);
+  await tick();
+  assert.match(saidSoFar(), /Reminder: buy milk\./);
+});
+
+test("after a reminder, the person can say 'again in ten minutes' with no wake phrase, and Nion knows what it was", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": reminderNotebook(dueReminder("r1", "call the bank", -1000)) } });
+  assert.match(saidSoFar(), /Reminder: call the bank\./);
+  await finishSpeaking();
+
+  await hear("remind me again in ten minutes");
+  assert.equal(fetches.length, 1, "no wake phrase needed");
+  const sent = fetches[0].body.messages;
+  assert.deepEqual(sent.map((m) => m.role), ["assistant", "user"]);
+  assert.match(sent[0].content, /Reminder: call the bank\./);
+  assert.equal(fetches[0].body.context.isNewConversation, false);
+});

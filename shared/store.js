@@ -9,12 +9,14 @@
 //
 // It makes no requests and holds no secrets, so it is easy to test.
 
-export const LIMITS = { memories: 40, expenses: 200, listItems: 50, drafts: 15 };
+import { describeWhen } from "./time.js";
+
+export const LIMITS = { memories: 40, expenses: 200, listItems: 50, drafts: 15, reminders: 30 };
 export const LISTS = ["todo", "visit"];
 export const LIST_NAMES = { todo: "to-do list", visit: "to-visit list" };
 
 export function emptyData() {
-  return { memories: [], expenses: [], lists: { todo: [], visit: [] }, drafts: [] };
+  return { memories: [], expenses: [], lists: { todo: [], visit: [] }, drafts: [], reminders: [] };
 }
 
 // ---------- cleaning (the data arrives from a browser, so it is never trusted) ----------
@@ -67,6 +69,13 @@ function cleanDraft(raw) {
   return { id, to: text(raw.to, 80), subject: text(raw.subject, 120), body, at: text(raw.at, 30) };
 }
 
+function cleanReminder(raw) {
+  const id = cleanId(raw?.id);
+  const body = text(raw?.text, 120);
+  const due = Date.parse(raw?.dueAt);
+  return id && body && Number.isFinite(due) ? { id, text: body, dueAt: new Date(due).toISOString(), done: raw.done === true, at: text(raw.at, 30) } : null;
+}
+
 const cleanList = (raw, clean, max) =>
   keepNewest((Array.isArray(raw) ? raw : []).map(clean).filter(Boolean), max);
 
@@ -78,6 +87,7 @@ export function cleanData(raw) {
     expenses: cleanList(raw?.expenses, cleanExpense, LIMITS.expenses),
     lists: Object.fromEntries(LISTS.map((name) => [name, cleanList(lists[name], cleanListItem, LIMITS.listItems)])),
     drafts: cleanList(raw?.drafts, cleanDraft, LIMITS.drafts),
+    reminders: cleanList(raw?.reminders, cleanReminder, LIMITS.reminders),
   };
 }
 
@@ -94,6 +104,9 @@ export function cleanData(raw) {
 //   remove_expense  { id }              (used by the Notebook page)
 //   remove_draft    { id }              (used by the Notebook page)
 //   save_draft      { item: { id, to, subject, body, at } }
+//   add_reminder    { item: { id, text, dueAt, at } }   (dueAt is an ISO date and time, in UTC)
+//   complete_reminder { id }                            (Nion has spoken it)
+//   remove_reminder { id }
 
 /** Returns a new notebook with the changes applied. Unknown or invalid changes are skipped. */
 export function applyOps(data, ops = []) {
@@ -121,6 +134,17 @@ export function applyOps(data, ops = []) {
       case "complete_item":
         if (LISTS.includes(op.list)) next.lists[op.list] = next.lists[op.list].map((i) => (i.id === op.id ? { ...i, done: true } : i));
         break;
+      case "add_reminder": {
+        const item = cleanReminder(op.item);
+        if (item) next.reminders.push(item);
+        break;
+      }
+      case "complete_reminder":
+        next.reminders = next.reminders.map((r) => (r.id === op.id ? { ...r, done: true } : r));
+        break;
+      case "remove_reminder":
+        next.reminders = next.reminders.filter((r) => r.id !== op.id);
+        break;
       case "reopen_item":
         if (LISTS.includes(op.list)) next.lists[op.list] = next.lists[op.list].map((i) => (i.id === op.id ? { ...i, done: false } : i));
         break;
@@ -145,6 +169,11 @@ export function applyOps(data, ops = []) {
   next.expenses = keepNewest(next.expenses, LIMITS.expenses);
   for (const name of LISTS) next.lists[name] = keepNewest(next.lists[name], LIMITS.listItems);
   next.drafts = keepNewest(next.drafts, LIMITS.drafts);
+  // Over the limit: drop reminders that were already spoken first, oldest first.
+  while (next.reminders.length > LIMITS.reminders) {
+    const spoken = next.reminders.findIndex((r) => r.done);
+    next.reminders.splice(spoken === -1 ? 0 : spoken, 1);
+  }
   return next;
 }
 
@@ -204,9 +233,10 @@ export function expenseDays(data) {
 /**
  * A short text for Nion's instructions: everything it needs to answer "what did I
  * spend today?" or "what's on my list?" without a tool call. `today` is the person's
- * own date, "YYYY-MM-DD".
+ * own date, "YYYY-MM-DD". `now` (milliseconds) and `timeZone` let reminder times be said in the
+ * person's own words ("today at 3:30 PM").
  */
-export function describeData(data, today = "") {
+export function describeData(data, today = "", { now = Date.now(), timeZone = "UTC" } = {}) {
   const lines = [];
   const open = (name) => data.lists[name].filter((i) => !i.done);
 
@@ -230,10 +260,22 @@ export function describeData(data, today = "") {
     lines.push(`The latest expenses:\n${recent.join("\n")}`);
   }
 
+  const upcoming = data.reminders.filter((r) => !r.done).sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+  lines.push(
+    upcoming.length
+      ? `Reminders you will speak aloud when the time comes (only while Nion is open):\n${upcoming.map((r) => `- ${r.text}: ${describeWhen(Date.parse(r.dueAt), now, timeZone)}`).join("\n")}`
+      : "No reminders are set."
+  );
+
   lines.push(
     data.drafts.length
       ? `Saved email drafts:\n${data.drafts.slice(-5).map((d) => `- to ${d.to || "nobody yet"}: ${d.subject || d.body.slice(0, 40)}`).join("\n")}`
       : "No email drafts are saved."
   );
+  // The newest draft in full, so Nion can read it aloud ("read my email back").
+  const latest = data.drafts.at(-1);
+  if (latest) {
+    lines.push(`The newest draft, in full (to read aloud if asked):\nTo: ${latest.to || "nobody yet"}\nSubject: ${latest.subject || "none"}\n${latest.body}`);
+  }
   return lines.join("\n\n");
 }

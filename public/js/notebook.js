@@ -6,6 +6,7 @@
 
 import { applyChanges, clearData, loadData } from "./data.js";
 import { describeDay, expenseDays, LIST_NAMES, LISTS, localToday } from "../../shared/store.js";
+import { describeWhen } from "../../shared/time.js";
 import { draftAsText, listAsText, mailtoLink, recapAsText } from "../../shared/export.js";
 import { shareText } from "./share.js";
 
@@ -94,6 +95,15 @@ function listSection(data, name) {
   return section(title, `Nothing on the ${LIST_NAMES[name]} yet.`, items, share);
 }
 
+function remindersSection(data) {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const items = data.reminders
+    .filter((r) => !r.done)
+    .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt))
+    .map((r) => row(`${r.text} · ${describeWhen(Date.parse(r.dueAt), Date.now(), zone)}`, button("Cancel", () => change([{ op: "remove_reminder", id: r.id }]))));
+  return section("Reminders (Nion says them aloud while it is open)", "No reminders. Ask Nion to remind you of something.", items);
+}
+
 function expensesSection(data) {
   const items = [];
   for (const day of expenseDays(data)) {
@@ -156,6 +166,7 @@ function render() {
   root.replaceChildren(
     memoriesSection(data),
     ...LISTS.map((name) => listSection(data, name)),
+    remindersSection(data),
     expensesSection(data),
     draftsSection(data)
   );

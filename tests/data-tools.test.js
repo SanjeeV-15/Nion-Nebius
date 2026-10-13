@@ -13,7 +13,7 @@ const context = { today: "2026-10-13", nowISO: "2026-10-13T15:00:00.000Z" };
 const withData = (ops = []) => ({ data: applyOps(emptyData(), ops), context });
 
 test("the notebook tools are the ones Nion's instructions talk about", () => {
-  assert.deepEqual(Object.keys(tools).sort(), ["add_expense", "add_to_list", "forget", "remember", "save_draft", "update_list_item"]);
+  assert.deepEqual(Object.keys(tools).sort(), ["add_expense", "add_to_list", "cancel_reminder", "forget", "remember", "save_draft", "set_reminder", "update_list_item"]);
   for (const tool of Object.values(tools)) {
     assert.equal(tool.parameters.type, "object");
     assert.ok(tool.description.length > 20);
@@ -74,7 +74,8 @@ test("save_draft only saves: the confirmation says it was not sent", () => {
   const result = tools.save_draft.run({ to: "Maria", subject: "Running late", body: "Hi Maria, I'll be about ten minutes late." }, withData());
   assert.equal(result.ops[0].item.to, "Maria");
   assert.match(result.text, /cannot send email/);
-  assert.match(result.text, /Notebook page/);
+  assert.match(result.text, /offer to read it back/);
+  assert.doesNotMatch(result.text, /screen|Notebook page|look at/i, "a listener is never sent to a screen")
   assert.deepEqual(tools.save_draft.run({ body: "" }, withData()).ops, []);
 });
 
@@ -122,7 +123,7 @@ test("with the notebook on, Nion says what it can do and sees the notebook", () 
   const prompt = buildSystemPrompt({ today: "2026-10-13" }, { search: true, data: true }, data);
   assert.match(prompt, /You have a notebook on the person's own device/);
   assert.match(prompt, /never sent/);
-  assert.match(prompt, /can't send email, set timed reminders/);
+  assert.match(prompt, /can't send email, make bookings or buy tickets, and a reminder can't reach the person if Nion is closed/);
   assert.match(prompt, /avoids pork/);
   assert.doesNotMatch(prompt, /You can't set reminders, change a to-do list, save notes/, "the old 'can't' text is gone");
 });

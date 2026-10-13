@@ -22,6 +22,7 @@ import { loadData, applyChanges, clearData } from "./data.js";
 import { createTypedChat } from "./typed.js";
 import { createWakeLock } from "./wakelock.js";
 import { visitorId } from "./visitor.js";
+import { createReminderScheduler } from "./reminders.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
 
@@ -649,6 +650,27 @@ el.typedForm.addEventListener("submit", async (event) => {
   } else showExchange(text, result.reply, result.sources);
 });
 
+// Reminders: spoken aloud when their time comes, if Nion is open and idle. (If Nion was
+// closed at the time, they are spoken the next time it is opened.) Saying one also keeps it
+// in the conversation, so "remind me again in ten minutes" knows what it is about.
+const reminders = createReminderScheduler({
+  loadData,
+  applyChanges,
+  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  canSpeak: () => state === "waiting" && session.awaiting === null && !locating && pending === null,
+  announce: async (text) => {
+    trace("reminder", text);
+    messages.push({ role: "assistant", content: text });
+    showExchange("", text);
+    const finished = await say(text);
+    if (finished && !session.active) openFollowUp(); // leave room for "again in ten minutes"
+  },
+});
+reminders.start();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") reminders.check();
+});
+
 // A manual way to stop Nion, for when your voice can't be heard over its own (on
 // laptop speakers the microphone hears Nion too): press Escape, or tap the circle.
 function stopNion() {
@@ -682,6 +704,7 @@ el.start.addEventListener("click", async () => {
     await say("Hi, I'm Nion. What should I call you?", { then: "listening" });
   } else {
     setState("waiting");
+    reminders.check(); // anything that came due while Nion was closed is said now
   }
 });
 

@@ -49,6 +49,7 @@ const SCENARIOS = [
   { name: "add to visit list", ask: "Add the old town to my to-visit list.", fails: (r) => (has(r.ops, "add_item", (o) => o.list === "visit") ? "" : "not added to the visit list") },
   { name: "recall spending", ask: "How much have I spent today?", fails: (r) => (/\b12\b|twelve/i.test(r.reply) ? "" : "did not say 12") },
   { name: "recall list", ask: "What's on my to-visit list?", fails: (r) => (/old town/i.test(r.reply) ? "" : "did not mention the old town") },
+  { name: "set reminder", ask: "Remind me in 20 minutes to call the bank.", fails: (r) => (has(r.ops, "add_reminder", (o) => /bank/i.test(o.item.text)) ? (/open|still/i.test(r.reply) ? "" : "did not say it only works while Nion is open") : "reminder not set") },
   { name: "save draft", ask: "Draft an email to Maria saying I'll be ten minutes late.", fails: (r) => (has(r.ops, "save_draft") ? (/can't send|cannot send|not send|isn't sent|saved/i.test(r.reply) ? "" : "did not say it is only saved") : "draft not saved") },
 ];
 
@@ -62,8 +63,9 @@ function dryFetch() {
     let message = { content: `Dry run reply ${++n}. It's ${month} twelve, twelve dollars, the old town.` };
     if (last.role === "user" && /spent 12/.test(lastUser)) message = { content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "add_expense", arguments: '{"amount":12,"currency":"USD","category":"food"}' } }] };
     if (last.role === "user" && /old town to my/.test(lastUser)) message = { content: null, tool_calls: [{ id: "c2", type: "function", function: { name: "add_to_list", arguments: '{"list":"visit","item":"the old town"}' } }] };
+    if (last.role === "user" && /Remind me in 20/.test(lastUser)) message = { content: null, tool_calls: [{ id: "c4", type: "function", function: { name: "set_reminder", arguments: '{"text":"call the bank","minutes_from_now":20}' } }] };
     if (last.role === "user" && /Draft an email/.test(lastUser)) message = { content: null, tool_calls: [{ id: "c3", type: "function", function: { name: "save_draft", arguments: '{"to":"Maria","subject":"Late","body":"Hi Maria, I will be late."}' } }] };
-    if (last.role === "tool") message = { content: "Saved. I can't send it." };
+    if (last.role === "tool") message = { content: "Saved. I can't send it, and I'm still open." };
     return { ok: true, status: 200, json: async () => ({ choices: [{ message }], usage: { prompt_tokens: 1000, completion_tokens: 50 } }), text: async () => "" };
   };
 }
