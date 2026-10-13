@@ -20,6 +20,8 @@ import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
 import { loadData, applyChanges, clearData } from "./data.js";
 import { createTypedChat } from "./typed.js";
+import { createWakeLock } from "./wakelock.js";
+import { visitorId } from "./visitor.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
 
@@ -100,7 +102,11 @@ const PROBLEM_TEXT = {
   credit: "The AI service says the account's credit has run out. Check the credit balance (Nebius Token Factory or the Anthropic Console), then try again.",
   key: "The AI service rejected the API key. Check the key in your .env file (NEBIUS_API_KEY or ANTHROPIC_API_KEY).",
   busy: "The AI service is busy right now. Try again in a moment.",
+  visitor: "You've asked a lot in a short time. Please wait a little while and try again.",
+  daily: "Nion has reached its limit for today, which keeps the demo free for everyone. Please try again tomorrow.",
 };
+// What Nion says when a fair-use limit is hit (instead of "trouble reaching my sources").
+const BREAK = "I'm taking a short break right now. Please try again a little later.";
 const FILLERS = ["One moment.", "Let me check.", "Checking on that.", "Just a second."];
 let lastFiller = -1;
 function nextFiller() {
@@ -170,6 +176,10 @@ function showProblem(message) {
   el.problem.hidden = !message;
 }
 
+// Keeps the screen awake while Nion is on, so a phone doesn't dim, lock and quietly
+// stop listening. (It can't listen in the background: that needs a native app.)
+const wakeLock = createWakeLock();
+
 const listener = createListener({
   onText: handleHeard,
   onInterim: handleInterim,
@@ -180,6 +190,7 @@ const listener = createListener({
 function handleProblem(reason) {
   if (reason === "mic-blocked") {
     listener.stop();
+    wakeLock.disable();
     setState("off");
     el.start.hidden = false;
     showProblem("Nion can't use the microphone. Allow it in Chrome's address bar, then tap the button again.");
@@ -544,7 +555,7 @@ async function ask(question, oneShot, gps) {
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Nion-Visitor": visitorId() ?? "" },
       signal: controller.signal,
       body: JSON.stringify({
         // Keep only the most recent turns so the request stays small.
@@ -602,7 +613,7 @@ async function ask(question, oneShot, gps) {
         "Nion couldn't get an answer. If this keeps happening, check the terminal where npm start is running."
     );
     await fillerFinished(); // let a "one moment" finish before saying this
-    await say(TROUBLE);
+    await say(error?.reason === "visitor" || error?.reason === "daily" ? BREAK : TROUBLE);
   }
 }
 
@@ -663,6 +674,7 @@ el.start.addEventListener("click", async () => {
   el.convo.hidden = false;
   showProblem("");
   listener.start();
+  wakeLock.enable();
 
   // First use: Nion asks your name once.
   if (!getName()) {

@@ -843,3 +843,37 @@ test("typing while Nion is speaking stops Nion", async () => {
   await tick();
   assert.equal(pending.length, 0, "Nion stopped talking");
 });
+
+// --- Fair-use limits ----------------------------------------------------------------
+
+test("each question carries this browser's visitor id, the same one every time", async () => {
+  await startApp({ name: "Sanjeev" });
+  const seen = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (url, options) => (seen.push(options.headers["X-Nion-Visitor"]), realFetch(url, options));
+  try {
+    await hear("hey nion what time is it in Denver");
+    fetches[0].reply("One seventeen.");
+    await tick();
+    await finishSpeaking();
+    await hear("and in Mumbai");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(seen.length, 2);
+  assert.match(seen[0], /^[0-9a-f-]{36}$/);
+  assert.equal(seen[0], seen[1]);
+  assert.equal(storage.get("nion.visitor"), seen[0], "kept on the device");
+});
+
+test("when the daily or hourly limit is hit, the screen explains and Nion says it is taking a break", async () => {
+  for (const [reason, onScreen] of [["daily", /limit for today/], ["visitor", /asked a lot in a short time/]]) {
+    await startApp({ name: "Sanjeev" });
+    await hear("hey nion what is the latest news");
+    fetches[0].serverError(reason);
+    await tick();
+    assert.match(elements.problem.textContent, onScreen);
+    assert.match(saidSoFar(), /taking a short break/);
+    assert.doesNotMatch(saidSoFar(), /trouble reaching/, "not mistaken for an outage");
+  }
+});

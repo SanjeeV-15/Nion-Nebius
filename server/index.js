@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { configProblem, providerName } from "./config.js";
 import { cleanData } from "../shared/store.js";
+import { createLimiter, cleanVisitorId, numberSetting } from "./limits.js";
 
 // Stop early with a clear message if a setting is missing (instead of failing later).
 const problem = configProblem();
@@ -30,6 +31,18 @@ const claude = new Anthropic();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// Hosts put a proxy in front of Nion, so the visitor's real address is in a header. One
+// proxy is the usual case; set NION_TRUST_PROXY to change it (a number, or "false").
+const trustProxy = process.env.NION_TRUST_PROXY ?? "1";
+app.set("trust proxy", trustProxy === "false" ? false : Number.isNaN(Number(trustProxy)) ? trustProxy : Number(trustProxy));
+
+// Fair-use limits for the public demo (see limits.js). Raise or turn off in the host's settings.
+const limiter = createLimiter({
+  perVisitor: numberSetting(process.env.NION_RATE_PER_HOUR, 200),
+  perIp: numberSetting(process.env.NION_IP_RATE_PER_HOUR, 1000),
+  dailyCap: numberSetting(process.env.NION_DAILY_CAP, 3000),
+});
 // The request carries a copy of the person's notebook, so it can be bigger than a chat message.
 app.use(express.json({ limit: "400kb" }));
 app.use(express.static(path.join(here, "..", "public")));
@@ -107,6 +120,13 @@ app.post("/api/chat", async (req, res) => {
     return res.status(400).json({ error: "Bad request: send a list of messages ending with a user message." });
   }
 
+  // Count the question against the fair-use limits (only valid ones, so mistakes are free).
+  const allowed = limiter.check({ visitorId: cleanVisitorId(req.get("x-nion-visitor")), ip: req.ip });
+  if (!allowed.ok) {
+    res.set("Retry-After", String(allowed.retryAfterSeconds));
+    return res.status(429).json({ error: "Nion is taking a break.", reason: allowed.reason === "daily" ? "daily" : "visitor", retryAfterSeconds: allowed.retryAfterSeconds });
+  }
+
   try {
     const place = await resolveLocation(location);
     if (place?.failed) return res.json({ needsLocation: true, locationFailed: true });
@@ -122,7 +142,8 @@ app.post("/api/chat", async (req, res) => {
     console.log(
       `Answered: ${usage.searches} search(es), ${usage.inputTokens} tokens in, ${usage.outputTokens} out` +
         (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "") +
-        (usage.fellBack ? ", answered by the fallback model" : "")
+        (usage.fellBack ? ", answered by the fallback model" : "") +
+        ` (today: ${limiter.stats().today}${limiter.stats().dailyCap ? ` of ${limiter.stats().dailyCap}` : ""})`
     );
     if (needsLocation) return res.json({ needsLocation: true });
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.

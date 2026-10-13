@@ -7,6 +7,8 @@
 // get in each other's way. Everything it needs from the page is passed in, so it can
 // be tested without a browser.
 
+import { visitorId } from "./visitor.js";
+
 const ASK_TIMEOUT_MS = 25000;
 
 /**
@@ -29,7 +31,7 @@ export function createTypedChat({ known, getContext, loadData, applyChanges, rec
     try {
       response = await fetchImpl("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Nion-Visitor": visitorId() ?? "" },
         signal: AbortSignal.timeout(ASK_TIMEOUT_MS),
         body: JSON.stringify({
           messages: thread.slice(-20),
