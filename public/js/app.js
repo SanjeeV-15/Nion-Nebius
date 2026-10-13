@@ -18,6 +18,7 @@ import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
+import { loadData, applyChanges, clearData } from "./data.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
 
@@ -35,10 +36,11 @@ const el = {
 const params = new URLSearchParams(location.search);
 
 // Opening the page with ?reset starts completely fresh: it forgets the saved name and
-// all saved conversations (useful before recording a demo).
+// all saved conversations and notebook (useful before recording a demo).
 if (params.has("reset")) {
   clearName();
   clearConversations();
+  clearData();
 }
 
 // Opening the page with ?debug shows a log of what Nion hears and decides, which
@@ -476,8 +478,11 @@ async function endConversation() {
 // Details about the person's moment, so Nion can answer "what is today's date?".
 function currentContext(isNewConversation) {
   const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
   return {
     nowISO: now.toISOString(),
+    // The person's own calendar date, so expenses are filed under the right day.
+    today: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     localDateTime: now.toLocaleString("en-US", {
       weekday: "long",
@@ -542,6 +547,8 @@ async function ask(question, oneShot, gps) {
         context: currentContext(oneShot),
         // Fresh GPS numbers, or the place we already know, or nothing.
         location: gps ?? (known.place ? { text: known.place } : undefined),
+        // A copy of the notebook: the server reads it, and answers with changes.
+        data: loadData(),
       }),
     });
     if (!response.ok) {
@@ -567,6 +574,8 @@ async function ask(question, oneShot, gps) {
 
     const { reply } = data;
     if (data.place) known.place = data.place; // worked out from GPS: remember it
+    // Notebook changes (an expense, a list item...) are kept only for an answer we accept.
+    if (data.changes?.length) applyChanges(data.changes);
     thread.push({ role: "assistant", content: reply });
     // Save it for the History screen (only questions that got an answer).
     conversationId = recordExchange(conversationId, question, reply, data.sources);

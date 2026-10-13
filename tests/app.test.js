@@ -128,11 +128,12 @@ function makeElement() {
 }
 
 let appVersion = 0;
-async function startApp({ name, search = "" } = {}) {
+async function startApp({ name, search = "", stored = {} } = {}) {
   for (const entry of scheduled) realClearTimeout(entry.timer); // timers of an earlier test
   scheduled.clear();
   storage = new Map();
   if (name) storage.set("nion.name", name);
+  for (const [key, value] of Object.entries(stored)) storage.set(key, JSON.stringify(value));
   elements = {};
   pageHandlers = {};
   spoken = [];
@@ -740,4 +741,48 @@ test("Nion's own 'one moment', written into the same phrase as yours, is not tak
   await finishSpeaking();
   await tick();
   assert.match(saidSoFar(), /According to Reuters/);
+});
+
+// --- The notebook (memories, expenses, lists, drafts) ---------------------------
+
+const aMemory = { id: "m1", text: "avoids pork", at: "2026-10-12T10:00:00Z" };
+
+test("each question carries a copy of the notebook and today's date", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": { memories: [aMemory] } } });
+  await hear("hey nion what should I eat");
+  assert.equal(fetches[0].body.data.memories[0].text, "avoids pork");
+  assert.deepEqual(fetches[0].body.data.lists, { todo: [], visit: [] }, "missing parts are filled in");
+  assert.match(fetches[0].body.context.today, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("changes in an answer are saved on the device and sent with the next question", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion add buy milk to my to-do list");
+  fetches[0].respond({
+    reply: "Added.",
+    changes: [{ op: "add_item", list: "todo", item: { id: "a1", text: "buy milk", at: "2026-10-13T10:00:00Z" } }],
+  });
+  await tick();
+  assert.equal(JSON.parse(storage.get("nion.data")).lists.todo[0].text, "buy milk");
+
+  await finishSpeaking();
+  await hear("what's on my list");
+  assert.equal(fetches[1].body.data.lists.todo[0].text, "buy milk");
+});
+
+test("a question that was interrupted does not change the notebook", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion add buy milk to my to-do list");
+  await hear("never mind", { final: false });
+  fetches[0].respond({
+    reply: "Added.",
+    changes: [{ op: "add_item", list: "todo", item: { id: "a1", text: "buy milk", at: "" } }],
+  });
+  await tick();
+  assert.equal(storage.get("nion.data"), undefined);
+});
+
+test("opening the page with ?reset also empties the notebook", async () => {
+  await startApp({ name: "Sanjeev", search: "?reset", stored: { "nion.data": { memories: [aMemory] } } });
+  assert.equal(storage.get("nion.data"), undefined);
 });

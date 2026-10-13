@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { configProblem, providerName } from "./config.js";
+import { cleanData } from "../shared/store.js";
 
 // Stop early with a clear message if a setting is missing (instead of failing later).
 const problem = configProblem();
@@ -29,8 +30,11 @@ const claude = new Anthropic();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-app.use(express.json({ limit: "100kb" }));
+// The request carries a copy of the person's notebook, so it can be bigger than a chat message.
+app.use(express.json({ limit: "400kb" }));
 app.use(express.static(path.join(here, "..", "public")));
+// The notebook rules are shared with the browser, so the page loads them from here.
+app.use("/shared", express.static(path.join(here, "..", "shared")));
 
 // A quick "are you alive?" check, used by tests and later by the phone check.
 app.get("/api/health", (req, res) => {
@@ -56,6 +60,8 @@ function cleanContext(raw = {}) {
     nowISO: text(raw.nowISO, 40),
     timeZone: text(raw.timeZone, 60),
     localDateTime: text(raw.localDateTime, 80),
+    // The person's own calendar date, "YYYY-MM-DD": expenses are filed under it.
+    today: /^\d{4}-\d{2}-\d{2}$/.test(raw.today) ? raw.today : undefined,
     userName: name || undefined,
     isNewConversation: raw.isNewConversation === true,
   };
@@ -81,7 +87,7 @@ async function resolveLocation(raw) {
 }
 
 app.post("/api/chat", async (req, res) => {
-  const { messages, context, location } = req.body ?? {};
+  const { messages, context, location, data: rawData } = req.body ?? {};
 
   // Check the request looks right before spending money on it.
   const valid =
@@ -105,9 +111,10 @@ app.post("/api/chat", async (req, res) => {
     const place = await resolveLocation(location);
     if (place?.failed) return res.json({ needsLocation: true, locationFailed: true });
 
-    const { reply, sources, usage, needsLocation } = await askNion({
+    const { reply, sources, usage, needsLocation, ops } = await askNion({
       messages,
       context: { ...cleanContext(context), place: place?.text },
+      data: cleanData(rawData),
       location: place && !place.failed ? { city: place.city, region: place.region, country: place.country } : undefined,
     });
     // A line per question, so you can see how much searching is going on (each
@@ -118,7 +125,8 @@ app.post("/api/chat", async (req, res) => {
     );
     if (needsLocation) return res.json({ needsLocation: true });
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.
-    res.json({ reply, sources, place: place?.fromGps ? place.text : undefined });
+    // `changes` are notebook updates for the browser to apply (and keep on the device).
+    res.json({ reply, sources, place: place?.fromGps ? place.text : undefined, changes: ops?.length ? ops : undefined });
   } catch (error) {
     console.error("AI request failed:", error?.status ?? "", error?.message ?? error);
     res.status(502).json({ error: "I'm having trouble reaching my sources.", reason: classifyFailure(error) });

@@ -12,6 +12,8 @@
 // it answers with a "tool call" instead of words. We run the tool, send the result
 // back, and ask again, until it answers in words. That is the "tool loop" below.
 
+import { applyOps, emptyData } from "../../shared/store.js";
+
 const DEFAULT_BASE_URL = "https://api.tokenfactory.nebius.com/v1/";
 
 // A ceiling, not a target: Nion's answers are short, but some models "think" first.
@@ -89,7 +91,13 @@ export function createNebiusProvider({
     }
     try {
       const result = await tool.run(args, ctx);
-      const { text, sources = [], searches = 0, retryable = false } = typeof result === "string" ? { text: result } : result;
+      const { text, sources = [], searches = 0, retryable = false, ops = [] } = typeof result === "string" ? { text: result } : result;
+      // Notebook changes: keep them for the browser, and apply them to our working copy so
+      // a second tool in the same turn sees the first one's result.
+      if (ops.length > 0) {
+        ctx.data = applyOps(ctx.data, ops);
+        totals.ops.push(...ops);
+      }
       totals.searches += searches;
       totals.sources.push(...sources);
       // A search that found nothing doesn't use up the allowance, so the AI can try once more.
@@ -105,15 +113,19 @@ export function createNebiusProvider({
   return {
     name: "nebius",
     // What Nion may claim it can do (see prompt.js).
-    abilities: { search: tools.some((tool) => tool.name === "web_search") },
+    abilities: {
+      search: tools.some((tool) => tool.name === "web_search"),
+      data: tools.some((tool) => tool.name === "add_expense"),
+    },
 
-    async ask({ system, messages, context, location, model }) {
+    async ask({ system, messages, context, location, model, data }) {
       const useModel = model || defaultModel;
       if (!useModel) throw new Error("No model chosen: set NION_MODEL in .env to a Token Factory model name.");
 
       const deadline = Date.now() + TOTAL_BUDGET_MS;
       const thread = [{ role: "system", content: system }, ...messages];
-      const totals = { searches: 0, sources: [], errors: [], inputTokens: 0, outputTokens: 0 };
+      const totals = { searches: 0, sources: [], errors: [], ops: [], inputTokens: 0, outputTokens: 0 };
+      const ctx = { context, location, data: data ?? emptyData() }; // what the tools can see
       const used = {}; // how many times each tool has been used for this question
       let text = "";
 
@@ -147,7 +159,7 @@ export function createNebiusProvider({
         // The AI asked for tools: remember what it said, run them, send back the results.
         thread.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
         for (const call of calls) {
-          thread.push({ role: "tool", tool_call_id: call.id, content: await runTool(call, { context, location }, totals, used) });
+          thread.push({ role: "tool", tool_call_id: call.id, content: await runTool(call, ctx, totals, used) });
         }
       }
 
@@ -159,6 +171,7 @@ export function createNebiusProvider({
         inputTokens: totals.inputTokens,
         outputTokens: totals.outputTokens,
         searchErrors: totals.errors,
+        ops: totals.ops,
         refused: false,
       };
     },
