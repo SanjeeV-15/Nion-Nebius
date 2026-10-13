@@ -7,17 +7,20 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Stop early with a clear message if the key is missing (instead of failing later).
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error(
-    "\nNion can't start: ANTHROPIC_API_KEY is missing.\n" +
-      "Open the .env file in this folder and put your Claude API key after ANTHROPIC_API_KEY=\n" +
-      "(see .env.example and the README).\n"
-  );
+import { configProblem, providerName } from "./config.js";
+
+// Stop early with a clear message if a setting is missing (instead of failing later).
+const problem = configProblem();
+if (problem) {
+  console.error(`\nNion can't start: ${problem}\n`);
   process.exit(1);
 }
 
-// Loaded after the key check so a missing key gives the message above.
+if (providerName() === "nebius" && !process.env.TAVILY_API_KEY) {
+  console.warn("Note: TAVILY_API_KEY is not set, so Nion can't search the web. Add it to .env to turn search on.");
+}
+
+// Loaded after the settings check so a missing key gives the message above.
 const { askNion } = await import("./brain.js");
 const { resolvePlace, describePlace, cleanPlacePart } = await import("./place.js");
 const { classifyFailure } = await import("./failure.js");
@@ -117,7 +120,7 @@ app.post("/api/chat", async (req, res) => {
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.
     res.json({ reply, sources, place: place?.fromGps ? place.text : undefined });
   } catch (error) {
-    console.error("Claude request failed:", error?.status ?? "", error?.message ?? error);
+    console.error("AI request failed:", error?.status ?? "", error?.message ?? error);
     res.status(502).json({ error: "I'm having trouble reaching my sources.", reason: classifyFailure(error) });
   }
 });
