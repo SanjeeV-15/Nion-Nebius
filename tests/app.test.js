@@ -934,3 +934,25 @@ test("after a reminder, the person can say 'again in ten minutes' with no wake p
   assert.match(sent[0].content, /Reminder: call the bank\./);
   assert.equal(fetches[0].body.context.isNewConversation, false);
 });
+
+// --- "Try saying" examples ----------------------------------------------------------------
+
+test("tapping an example sends it as a typed question, exactly as if it had been typed", async () => {
+  await startApp({ name: "Sanjeev" });
+  const done = elements.try.handlers.click({ target: { dataset: { text: "Remind me in 5 minutes to stretch." } } });
+  await tick();
+  assert.equal(fetches.at(-1).body.messages.at(-1).content, "Remind me in 5 minutes to stretch.");
+  assert.match(elements["ex-q"].textContent, /You: Remind me in 5 minutes to stretch\./);
+
+  fetches.at(-1).respond({ reply: "Okay, I'll remind you in 5 minutes, if I'm still open." });
+  await done;
+  assert.match(elements["ex-a"].textContent, /I'll remind you in 5 minutes/);
+});
+
+test("tapping anywhere else in the examples strip does nothing", async () => {
+  await startApp({ name: "Sanjeev" });
+  const before = fetches.length;
+  await elements.try.handlers.click({ target: { dataset: {} } });
+  await elements.try.handlers.click({ target: undefined });
+  assert.equal(fetches.length, before);
+});

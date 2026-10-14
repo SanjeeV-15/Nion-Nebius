@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { configProblem } from "./config.js";
 import { cleanData } from "../shared/store.js";
-import { createLimiter, cleanVisitorId, numberSetting } from "./limits.js";
+import { createLimiter, cleanVisitorId, isJudgePass, numberSetting } from "./limits.js";
 
 // Stop early with a clear message if a setting is missing (instead of failing later).
 const problem = configProblem();
@@ -40,6 +40,7 @@ const limiter = createLimiter({
   perVisitor: numberSetting(process.env.NION_RATE_PER_HOUR, 200),
   perIp: numberSetting(process.env.NION_IP_RATE_PER_HOUR, 1000),
   dailyCap: numberSetting(process.env.NION_DAILY_CAP, 3000),
+  judgeDailyCap: numberSetting(process.env.NION_JUDGE_DAILY_CAP, 5000),
 });
 // The request carries a copy of the person's notebook, so it can be bigger than a chat message.
 app.use(express.json({ limit: "400kb" }));
@@ -119,7 +120,8 @@ app.post("/api/chat", async (req, res) => {
   }
 
   // Count the question against the fair-use limits (only valid ones, so mistakes are free).
-  const allowed = limiter.check({ visitorId: cleanVisitorId(req.get("x-nion-visitor")), ip: req.ip });
+  const judge = isJudgePass(req.get("x-nion-pass"), process.env.NION_JUDGE_PASS);
+  const allowed = limiter.check({ visitorId: cleanVisitorId(req.get("x-nion-visitor")), ip: req.ip, judge });
   if (!allowed.ok) {
     res.set("Retry-After", String(allowed.retryAfterSeconds));
     return res.status(429).json({ error: "Nion is taking a break.", reason: allowed.reason === "daily" ? "daily" : "visitor", retryAfterSeconds: allowed.retryAfterSeconds });
@@ -141,7 +143,9 @@ app.post("/api/chat", async (req, res) => {
       `Answered: ${usage.searches} search(es), ${usage.inputTokens} tokens in, ${usage.outputTokens} out` +
         (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "") +
         (usage.fellBack ? ", answered by the fallback model" : "") +
-        ` (today: ${limiter.stats().today}${limiter.stats().dailyCap ? ` of ${limiter.stats().dailyCap}` : ""})`
+        (judge
+          ? ` (judge pass, today: ${limiter.stats().judgeToday}${limiter.stats().judgeDailyCap ? ` of ${limiter.stats().judgeDailyCap}` : ""})`
+          : ` (today: ${limiter.stats().today}${limiter.stats().dailyCap ? ` of ${limiter.stats().dailyCap}` : ""})`)
     );
     if (needsLocation) return res.json({ needsLocation: true });
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.

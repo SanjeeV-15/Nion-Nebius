@@ -21,7 +21,7 @@ import { getName, setName, clearName, clearConversations, recordExchange } from 
 import { loadData, applyChanges, clearData } from "./data.js";
 import { createTypedChat } from "./typed.js";
 import { createWakeLock } from "./wakelock.js";
-import { visitorId } from "./visitor.js";
+import { visitorId, judgePass } from "./visitor.js";
 import { createReminderScheduler } from "./reminders.js";
 import { showState } from "./ui.js";
 import { geolocationPermission, getDevicePosition } from "./location.js";
@@ -41,6 +41,7 @@ const el = {
   exSources: document.getElementById("ex-sources"),
   typedForm: document.getElementById("typed"),
   typedInput: document.getElementById("typed-input"),
+  tryStrip: document.getElementById("try"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -556,7 +557,7 @@ async function ask(question, oneShot, gps) {
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Nion-Visitor": visitorId() ?? "" },
+      headers: { "Content-Type": "application/json", "X-Nion-Visitor": visitorId() ?? "", "X-Nion-Pass": judgePass() ?? "" },
       signal: controller.signal,
       body: JSON.stringify({
         // Keep only the most recent turns so the request stays small.
@@ -632,9 +633,7 @@ function showExchange(question, reply, sources = []) {
 // side, but keeps its own conversation (see typed.js).
 const typed = createTypedChat({ known, getContext: currentContext, loadData, applyChanges, recordExchange });
 let typing = false;
-el.typedForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const text = el.typedInput.value.trim();
+async function sendTyped(text) {
   if (!text || typing) return;
   typing = true;
   el.typedInput.value = "";
@@ -648,6 +647,16 @@ el.typedForm.addEventListener("submit", async (event) => {
     showExchange(text, "");
     showProblem(PROBLEM_TEXT[result.reason] ?? "Nion couldn't get an answer. Please try again in a moment.");
   } else showExchange(text, result.reply, result.sources);
+}
+el.typedForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  return sendTyped(el.typedInput.value.trim());
+});
+
+// "Try saying": a few example requests, one tap each, for a first visit or a quiet place.
+el.tryStrip.addEventListener("click", (event) => {
+  const example = event.target?.dataset?.text;
+  if (example) return sendTyped(example);
 });
 
 // Reminders: spoken aloud when their time comes, if Nion is open and idle. (If Nion was

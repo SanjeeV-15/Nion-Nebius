@@ -498,6 +498,7 @@ main.history {
 
 .typed {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin: 16px 0 0;
 }
@@ -518,6 +519,45 @@ main.history {
 }
 
 .typed input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.try {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin: 14px 0 0;
+}
+
+.try-label {
+  width: 100%;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.try button {
+  padding: 6px 12px;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.try button:hover {
+  color: var(--ink);
+  background: var(--glass);
+}
+
+.try button:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
