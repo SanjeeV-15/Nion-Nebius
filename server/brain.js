@@ -54,7 +54,7 @@ export async function askNion({ messages, context, location, model, provider, da
   });
 
   const { searches, inputTokens, outputTokens, searchErrors } = result;
-  const usage = { searches, inputTokens, outputTokens, searchErrors, fellBack: result.fellBack === true };
+  const usage = { searches, inputTokens, outputTokens, searchErrors, fellBack: result.fellBack === true, ...(result.model ? { model: result.model } : {}) };
   const ops = result.ops ?? [];
 
   if (result.refused) {

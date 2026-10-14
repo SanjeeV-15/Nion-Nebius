@@ -3,7 +3,7 @@
 // model several times and prints a table (and can save it to docs/benchmark.md).
 //
 //   node scripts/benchmark.mjs            a free dry run with a pretend service (checks the script)
-//   node --env-file=.env scripts/benchmark.mjs --live [--runs 2] [--models ultra,nano] [--write]
+//   node --env-file=.env scripts/benchmark.mjs --live [--runs 2] [--models super,ultra,nano] [--write]
 //
 // --live CALLS THE REAL SERVICE AND COSTS MONEY (roughly 5 to 10 cents per model per
 // run at the prices I could find, plus a few free Tavily searches). Decide before you run it.
@@ -31,7 +31,7 @@ const flag = (name) => args.includes(`--${name}`);
 const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : fallback);
 const live = flag("live");
 const runs = Math.max(1, Number(option("runs", 2)) || 2);
-const modelKeys = option("models", "ultra,nano").split(",").map((k) => k.trim()).filter((k) => MODELS[k]);
+const modelKeys = option("models", "super,ultra").split(",").map((k) => k.trim()).filter((k) => MODELS[k]);
 
 const words = (text) => (text.match(/\S+/g) || []).length;
 const median = (nums) => [...nums].sort((a, b) => a - b)[Math.floor((nums.length - 1) / 2)];

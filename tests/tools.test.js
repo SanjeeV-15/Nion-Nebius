@@ -224,12 +224,13 @@ test("if the AI sends no words after a search, it is asked again instead of leav
   const silent = { choices: [{ message: { content: null, tool_calls: [{ id: "x", type: "function", function: { name: "web_search", arguments: "{}" } }] }, finish_reason: "tool_calls" }], usage: {} };
   const { fetchImpl, sent } = scriptedFetch([callTool("web_search", { query: "a" }), silent, say("Try La Carreta.")]);
   const tool = { ...fakeSearch(async () => "result"), maxCalls: 1 };
+  // (With no stronger model to escalate to, the model is nudged instead.)
   const warn = console.warn;
   const warnings = [];
   console.warn = (line) => warnings.push(line);
   let result;
   try {
-    result = await createNebiusProvider({ apiKey: "k", model: "m", fetchImpl, tools: [tool] }).ask({ system: "S", messages });
+    result = await createNebiusProvider({ apiKey: "k", model: "m", fallbackModel: "none", fetchImpl, tools: [tool] }).ask({ system: "S", messages });
   } finally {
     console.warn = warn;
   }

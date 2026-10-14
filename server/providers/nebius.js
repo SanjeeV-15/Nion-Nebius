@@ -14,7 +14,7 @@
 
 import { applyOps, emptyData } from "../../shared/store.js";
 
-import { DEFAULT_MODEL } from "../config.js";
+import { DEFAULT_MODEL, ESCALATION_MODEL } from "../config.js";
 
 const DEFAULT_BASE_URL = "https://api.tokenfactory.nebius.com/v1/";
 
@@ -28,14 +28,14 @@ const MAX_ROUNDS = 4;
 // Everything for one question must finish within this. (The page gives up at 25 seconds.)
 const TOTAL_BUDGET_MS = 22_000;
 
-// The main model is given this long per request. Past it (or if it is overloaded), the
-// same request is retried on a smaller, faster model, because in testing the big model
-// sometimes took 11 to 20 seconds, and a long silence feels broken in a voice chat.
+// The everyday model is given this long per request. Past it (or if it is overloaded, or
+// it gives no answer), the same request goes to the stronger model instead, because in
+// testing a model sometimes took 11 to 20 seconds, and a long silence feels broken in a voice chat.
 const PRIMARY_TIMEOUT_MS = 8_000;
-// What to do when the main model is slow: "same" tries it once more (the default),
-// "none" gives up, or name another model. Measured: the small Nano model is slower than
-// Ultra on search questions (a median of 12.7 s against 3.3 s), so it is not the default.
-const DEFAULT_FALLBACK = "same";
+// What to do when the everyday model is slow or fails: escalate to the stronger model (the
+// default), "same" tries it once more, "none" gives up, or name another model. (If the everyday
+// model is already the strongest one, escalating to it is the same as trying once more.)
+const DEFAULT_FALLBACK = ESCALATION_MODEL;
 
 // Slow or overloaded is worth a second try on another model. A rejected key or a bad
 // request (401, 400...) would fail the same way on any model, so those are not retried.
@@ -216,6 +216,14 @@ export function createNebiusProvider({
             `Nebius gave no spoken text (finish: ${data.choices?.[0]?.finish_reason}, ` +
               `tool calls: ${message.tool_calls?.length ?? 0}, thinking chars: ${String(message.reasoning_content ?? "").length})`
           );
+          // First, hand the question to the stronger model (with everything so far, including any
+          // search results). Only if that also says nothing do we nudge it.
+          if (!state.fellBack && state.fallback && state.fallback !== state.model) {
+            console.warn(`Nebius: ${state.model} gave no answer; escalating to ${state.fallback}.`);
+            state.model = state.fallback;
+            state.fellBack = true;
+            continue;
+          }
           thread.push({ role: "user", content: "No more searches are available. Answer me now in plain spoken words, using only the search results you already have." });
           continue;
         }
@@ -237,6 +245,7 @@ export function createNebiusProvider({
         searchErrors: totals.errors,
         ops: totals.ops,
         fellBack: state.fellBack,
+        model: state.model,
         refused: false,
       };
     },

@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { askNion, completeShort } from "../server/brain.js";
 import { createNebiusProvider } from "../server/providers/nebius.js";
-import { configProblem, DEFAULT_MODEL } from "../server/config.js";
+import { configProblem, DEFAULT_MODEL, ESCALATION_MODEL } from "../server/config.js";
 
 // A pretend provider that returns what it is told and remembers what it was asked.
 function fakeProvider(result) {
@@ -113,7 +113,7 @@ test("the settings check says what is missing", () => {
   assert.equal(configProblem({ NEBIUS_API_KEY: "x" }), undefined, "the model and everything else have defaults");
 });
 
-test("with no model chosen, Nion uses Nemotron Ultra", async () => {
+test("with no model chosen, Nion uses Nemotron Super for everyday turns, with Ultra as the stronger tier", async () => {
   const saved = process.env.NION_MODEL;
   delete process.env.NION_MODEL;
   try {
@@ -124,7 +124,8 @@ test("with no model chosen, Nion uses Nemotron Ultra", async () => {
     };
     await createNebiusProvider({ apiKey: "k", fetchImpl }).ask({ system: "S", messages });
     assert.equal(sent[0].model, DEFAULT_MODEL);
-    assert.equal(DEFAULT_MODEL, "nvidia/Nemotron-3-Ultra-550b-a55b");
+    assert.equal(DEFAULT_MODEL, "nvidia/nemotron-3-super-120b-a12b");
+    assert.equal(ESCALATION_MODEL, "nvidia/Nemotron-3-Ultra-550b-a55b");
   } finally {
     if (saved !== undefined) process.env.NION_MODEL = saved;
   }

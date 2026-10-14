@@ -142,7 +142,7 @@ app.post("/api/chat", async (req, res) => {
     console.log(
       `Answered: ${usage.searches} search(es), ${usage.inputTokens} tokens in, ${usage.outputTokens} out` +
         (usage.searchErrors.length ? `, search errors: ${usage.searchErrors.join(", ")}` : "") +
-        (usage.fellBack ? ", answered by the fallback model" : "") +
+        (usage.fellBack ? `, escalated to ${usage.model}` : "") +
         (judge
           ? ` (judge pass, today: ${limiter.stats().judgeToday}${limiter.stats().judgeDailyCap ? ` of ${limiter.stats().judgeDailyCap}` : ""})`
           : ` (today: ${limiter.stats().today}${limiter.stats().dailyCap ? ` of ${limiter.stats().dailyCap}` : ""})`)

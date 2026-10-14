@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createNebiusProvider } from "../server/providers/nebius.js";
 import { createWebSearchTool } from "../server/tools/web-search.js";
+import { ESCALATION_MODEL } from "../server/config.js";
 
 const messages = [{ role: "user", content: "hi" }];
 const say = (content) => ({ choices: [{ message: { content } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
@@ -136,17 +137,52 @@ test("'same' (the default) tries the main model once more, because a slow moment
   assert.equal(models.length, 2);
 });
 
-test("with nothing set, the default is to retry the same model, not to switch to a slower one", async () => {
+test("with nothing set, a slow everyday model escalates to Ultra, the stronger tier", async () => {
   const saved = process.env.NION_FALLBACK_MODEL;
   delete process.env.NION_FALLBACK_MODEL;
   try {
     let calls = 0;
     const { fetchImpl, models } = service(() => (++calls === 1 ? (() => { throw timeoutError(); })() : say("ok")));
-    await quietly(() => createNebiusProvider({ apiKey: "k", model: "big", fetchImpl }).ask({ system: "S", messages }));
-    assert.deepEqual(models, ["big", "big"]);
+    const { result } = await quietly(() => createNebiusProvider({ apiKey: "k", model: "everyday", fetchImpl }).ask({ system: "S", messages }));
+    assert.deepEqual(models, ["everyday", ESCALATION_MODEL]);
+    assert.equal(result.model, ESCALATION_MODEL, "the answer says which model gave it");
+    assert.equal(result.fellBack, true);
   } finally {
     if (saved !== undefined) process.env.NION_FALLBACK_MODEL = saved;
   }
+});
+
+test("when Ultra is already the main model, escalating means trying it once more", async () => {
+  const saved = process.env.NION_FALLBACK_MODEL;
+  delete process.env.NION_FALLBACK_MODEL;
+  try {
+    let calls = 0;
+    const { fetchImpl, models } = service(() => (++calls === 1 ? (() => { throw timeoutError(); })() : say("ok")));
+    await quietly(() => createNebiusProvider({ apiKey: "k", model: ESCALATION_MODEL, fetchImpl }).ask({ system: "S", messages }));
+    assert.deepEqual(models, [ESCALATION_MODEL, ESCALATION_MODEL]);
+  } finally {
+    if (saved !== undefined) process.env.NION_FALLBACK_MODEL = saved;
+  }
+});
+
+test("a model that says nothing is not nudged first: the question goes to the stronger model with everything so far", async () => {
+  const toolCall = { choices: [{ message: { content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "web_search", arguments: '{"query":"x"}' } }] } }], usage: {} };
+  const silent = { choices: [{ message: { content: null }, finish_reason: "stop" }], usage: {} };
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    const body = JSON.parse(options.body);
+    requests.push(body);
+    const reply = requests.length === 1 ? toolCall : body.model === "stronger" ? say("A real answer.") : silent;
+    return { ok: true, status: 200, json: async () => reply, text: async () => "" };
+  };
+  const tool = { name: "web_search", description: "d", parameters: { type: "object", properties: {} }, maxCalls: 1, run: async () => "results" };
+  const { result, lines } = await quietly(() => createNebiusProvider({ apiKey: "k", model: "everyday", fallbackModel: "stronger", fetchImpl, tools: [tool] }).ask({ system: "S", messages }));
+
+  assert.deepEqual(requests.map((r) => r.model), ["everyday", "everyday", "stronger"]);
+  assert.equal(result.text, "A real answer.");
+  assert.equal(result.model, "stronger");
+  assert.equal(requests[2].messages.at(-1).role, "tool", "no nudge: the search results are simply passed on");
+  assert.ok(lines.some((l) => /gave no answer; escalating to stronger/.test(l)));
 });
 
 test("a normal fast answer never touches the fallback", async () => {
