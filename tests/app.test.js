@@ -956,3 +956,119 @@ test("tapping anywhere else in the examples strip does nothing", async () => {
   await elements.try.handlers.click({ target: undefined });
   assert.equal(fetches.length, before);
 });
+
+// --- Voice-controlled panels ----------------------------------------------------------------
+
+const todoNotebook = { lists: { todo: [{ id: "t1", text: "buy a SIM card" }, { id: "t2", text: "call the bank", done: true }], visit: [] } };
+
+test("'Hey Nion, show my to-do list' opens a panel and reads it out, with no AI round trip", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": todoNotebook } });
+  await hear("hey nion show my to-do list");
+  assert.equal(fetches.length, 0, "handled on the spot");
+  assert.equal(elements.panel.hidden, false);
+  assert.equal(elements["panel-title"].textContent, "To-do list");
+  assert.equal(elements["panel-body"].textContent, "☐ buy a SIM card\n☑ call the bank");
+  assert.match(saidSoFar(), /Here's your to-do list\. You have 1 open item: buy a SIM card\./);
+});
+
+test("while the panel is open, adding something updates it as you speak, with no wake phrase", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": todoNotebook } });
+  await hear("hey nion show my to-do list");
+  await finishSpeaking();
+
+  await hear("add buy milk");
+  assert.equal(fetches.length, 1, "this one does go to the AI");
+  fetches[0].respond({ reply: "Added.", changes: [{ op: "add_item", list: "todo", item: { id: "t3", text: "buy milk", at: "" } }] });
+  await tick();
+  assert.equal(elements["panel-body"].textContent, "☐ buy a SIM card\n☐ buy milk\n☑ call the bank", "the panel changed as soon as the answer arrived");
+});
+
+test("'close it' closes the panel at once; 'remove that' does not", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": todoNotebook } });
+  await hear("hey nion show my to-do list");
+  await finishSpeaking();
+
+  await hear("remove that");
+  assert.equal(fetches.length, 1, "'remove that' is for the AI, not a way to close the panel");
+  assert.equal(elements.panel.hidden, false);
+  fetches[0].respond({ reply: "Removed." });
+  await tick();
+  await finishSpeaking();
+
+  await hear("close it");
+  assert.equal(fetches.length, 1, "closing needs no AI");
+  assert.equal(elements.panel.hidden, true);
+  assert.match(saidSoFar(), /Closed\./);
+});
+
+test("'close it' with nothing open says so", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion close it");
+  assert.match(saidSoFar(), /Nothing is open right now\./);
+  assert.equal(fetches.length, 0);
+});
+
+test("a panel the AI opens appears on the page", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": { expenses: [{ id: "e1", amount: 12, currency: "USD", category: "food", note: "lunch", day: new Date().toLocaleDateString("en-CA") }] } } });
+  await hear("hey nion what have I spent, put it on screen");
+  fetches[0].respond({ reply: "You've spent 12 dollars today.", ui: [{ ui: "show", panel: "expenses" }] });
+  await tick();
+  assert.equal(elements.panel.hidden, false);
+  assert.equal(elements["panel-title"].textContent, "Expenses");
+  assert.match(elements["panel-body"].textContent, /12\.00 USD/);
+
+  await finishSpeaking();
+  await hear("hide it please");
+  assert.equal(elements.panel.hidden, true);
+});
+
+test("a panel opened by the AI can be told to close by the AI too, and an unknown panel is ignored", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion show everything");
+  await finishSpeaking();
+  await hear("hey nion put the bank account on screen");
+  fetches.at(-1).respond({ reply: "Done.", ui: [{ ui: "show", panel: "bank-account" }, { ui: "explode" }] });
+  await tick();
+  assert.equal(elements["panel-title"].textContent, "Notebook", "the earlier panel is untouched by an unknown one");
+  await finishSpeaking();
+  await hear("hey nion put it away");
+  fetches.at(-1).respond({ reply: "Done.", ui: [{ ui: "hide" }] });
+  await tick();
+  assert.equal(elements.panel.hidden, true);
+});
+
+test("typing 'show my reminders' opens the panel at once, shows the words, and does not speak", async () => {
+  await startApp({ name: "Sanjeev" });
+  const before = spoken.length;
+  elements["typed-input"].value = "show my reminders";
+  await elements.typed.handlers.submit({ preventDefault() {} });
+  assert.equal(fetches.length, 0);
+  assert.equal(elements.panel.hidden, false);
+  assert.equal(elements["panel-title"].textContent, "Reminders");
+  assert.match(elements["ex-a"].textContent, /Nion: Here are your reminders\. There are none\./);
+  assert.equal(spoken.length, before, "typed answers are shown, not spoken");
+
+  elements["typed-input"].value = "close it";
+  await elements.typed.handlers.submit({ preventDefault() {} });
+  assert.equal(elements.panel.hidden, true);
+});
+
+test("the panel's Close button works for anyone who would rather tap", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion show my memories");
+  assert.equal(elements.panel.hidden, false);
+  elements["panel-close"].click();
+  assert.equal(elements.panel.hidden, true);
+});
+
+test("a reminder spoken while a panel is open updates the reminders panel", async () => {
+  await startApp({ name: "Sanjeev", stored: { "nion.data": reminderNotebook(dueReminder("r1", "buy milk", 60_000)) } });
+  await hear("hey nion show my reminders");
+  assert.match(elements["panel-body"].textContent, /buy milk/);
+  await finishSpeaking();
+  storage.set("nion.data", JSON.stringify(reminderNotebook(dueReminder("r1", "buy milk", -1000))));
+  firePending(5000);
+  await tick();
+  assert.match(saidSoFar(), /Reminder: buy milk\./);
+  assert.equal(elements["panel-body"].textContent, "No reminders.", "it was spoken, so it is no longer upcoming");
+});

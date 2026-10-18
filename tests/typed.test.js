@@ -34,7 +34,7 @@ test("a typed question goes to the server with the notebook, and the answer come
   ]);
   const result = await chat.send("  add buy milk to my to-do list ");
 
-  assert.deepEqual(result, { reply: "Added.", sources: [{ title: "Reuters", url: "https://reuters.com/x" }] });
+  assert.deepEqual(result, { reply: "Added.", sources: [{ title: "Reuters", url: "https://reuters.com/x" }], ui: [] });
   assert.equal(requests[0].url, "/api/chat");
   assert.deepEqual(requests[0].body.messages, [{ role: "user", content: "add buy milk to my to-do list" }]);
   assert.equal(requests[0].body.context.isNewConversation, true);

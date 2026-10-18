@@ -131,7 +131,7 @@ app.post("/api/chat", async (req, res) => {
     const place = await resolveLocation(location);
     if (place?.failed) return res.json({ needsLocation: true, locationFailed: true });
 
-    const { reply, sources, usage, needsLocation, ops } = await askNion({
+    const { reply, sources, usage, needsLocation, ops, ui } = await askNion({
       messages,
       context: { ...cleanContext(context), place: place?.text },
       data: cleanData(rawData),
@@ -150,7 +150,7 @@ app.post("/api/chat", async (req, res) => {
     if (needsLocation) return res.json({ needsLocation: true });
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.
     // `changes` are notebook updates for the browser to apply (and keep on the device).
-    res.json({ reply, sources, place: place?.fromGps ? place.text : undefined, changes: ops?.length ? ops : undefined });
+    res.json({ reply, sources, place: place?.fromGps ? place.text : undefined, changes: ops?.length ? ops : undefined, ui: ui?.length ? ui : undefined });
   } catch (error) {
     console.error("AI request failed:", error?.status ?? "", error?.message ?? error);
     res.status(502).json({ error: "I'm having trouble reaching my sources.", reason: classifyFailure(error) });

@@ -20,11 +20,13 @@
 //   { type: "start" }                      begin a conversation
 //   { type: "end" }                        end the conversation
 //   { type: "awaitQuestion" }              heard only "Hey Nion"
+//   { type: "panel", command }             open ({ type: "open", panel }) or close ({ type: "close" }) a notebook panel
 //   { type: "ask", question, oneShot }     send a question to the AI
 
 import { parseUtterance, detectCommand } from "./wake.js";
 import { extractName } from "./name.js";
 import { extractPlace, wantsDeviceLocation } from "./location.js";
+import { matchPanelCommand } from "../../shared/panels.js";
 
 // Is Nion in a conversation, either a started one or the follow-up window after an answer?
 function isOpen(session) {
@@ -42,6 +44,11 @@ function decideAfterWake(question, session) {
   if (name) return { type: "setName", name };
 
   if (!question) return { type: "awaitQuestion" };
+
+  // "Show my to-do list" / "close it": handled on the spot, with no AI round trip.
+  const panel = matchPanelCommand(question);
+  if (panel) return { type: "panel", command: panel };
+
   return { type: "ask", question, oneShot: !isOpen(session) };
 }
 

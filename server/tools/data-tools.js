@@ -9,6 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { LISTS, LIST_NAMES, LIMITS, describeDay, findByText } from "../../shared/store.js";
 import { describeWhen, isTimeZone, localToUtc } from "../../shared/time.js";
+import { PANELS } from "../../shared/panels.js";
 
 const newId = () => randomUUID().slice(0, 8);
 const listEnum = { type: "string", enum: LISTS, description: "todo = to-do list; visit = places to visit." };
@@ -189,6 +190,29 @@ export function createDataTools() {
           return say(open.length ? `I couldn't find that. The reminders are: ${open.map((r) => r.text).join(", ")}.` : "There are no reminders to cancel.");
         }
         return { text: `Cancelled: ${found.text}.`, ops: [{ op: "remove_reminder", id: found.id }] };
+      },
+    },
+    {
+      name: "show_panel",
+      description:
+        "Show part of the notebook in a panel on the person's screen. It stays open and updates as things are added or removed. " +
+        "Use it when they ask to see something. Also say briefly what is on it.",
+      parameters: {
+        type: "object",
+        properties: { panel: { type: "string", enum: PANELS, description: "todo, visit, reminders, expenses, drafts, memories, or all." } },
+        required: ["panel"],
+      },
+      run({ panel }) {
+        if (!PANELS.includes(panel)) return say("Not shown: that is not a panel I have.");
+        return { text: `The ${panel} panel is open. Say briefly what is on it, up to five items.`, ops: [], ui: [{ ui: "show", panel }] };
+      },
+    },
+    {
+      name: "hide_panel",
+      description: "Close the panel that is showing, when the person asks.",
+      parameters: { type: "object", properties: {} },
+      run() {
+        return { text: "The panel is closed.", ops: [], ui: [{ ui: "hide" }] };
       },
     },
     {

@@ -37,9 +37,9 @@ export async function completeShort(prompt, provider) {
  *   location: optional { city, region, country } to localize searches
  *   data:     the person's notebook (memories, expenses, lists, drafts), already cleaned
  *   provider: which AI to use (tests pass a pretend one)
- * Returns { reply, sources, searches, usage, ops }: reply is the text Nion should speak,
+ * Returns { reply, sources, searches, usage, ops, ui }: reply is the text Nion should speak,
  * sources are the pages it used, as [{ title, url }], and ops are notebook changes
- * for the browser to apply.
+ * for the browser to apply, and ui are screen actions (open or close a panel) for it to carry out.
  */
 export async function askNion({ messages, context, location, model, provider, data }) {
   provider ??= defaultProvider ??= createProvider();
@@ -56,9 +56,10 @@ export async function askNion({ messages, context, location, model, provider, da
   const { searches, inputTokens, outputTokens, searchErrors } = result;
   const usage = { searches, inputTokens, outputTokens, searchErrors, fellBack: result.fellBack === true, ...(result.model ? { model: result.model } : {}) };
   const ops = result.ops ?? [];
+  const ui = result.ui ?? [];
 
   if (result.refused) {
-    return { reply: "Sorry, I can't help with that one.", sources: [], searches, usage, ops: [] };
+    return { reply: "Sorry, I can't help with that one.", sources: [], searches, usage, ops: [], ui: [] };
   }
 
   // Nion needs to know where the person is, and doesn't. The page will ask them.
@@ -72,5 +73,6 @@ export async function askNion({ messages, context, location, model, provider, da
     searches,
     usage,
     ops,
+    ui,
   };
 }

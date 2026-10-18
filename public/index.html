@@ -54,6 +54,15 @@
       <button id="convo" class="pill" type="button" hidden>Start conversation</button>
     </div>
 
+    <!-- A part of the notebook, opened by voice ("show my to-do list") and updated as things change. -->
+    <section id="panel" class="panel" aria-live="polite" hidden>
+      <div class="panel-head">
+        <h2 id="panel-title"></h2>
+        <button id="panel-close" class="mini" type="button" aria-label="Close the panel">Close</button>
+      </div>
+      <pre id="panel-body" class="panel-body"></pre>
+    </section>
+
     <!-- The last thing said and what Nion answered, shown quietly as text. app.js fills it in. -->
     <section id="exchange" class="exchange" aria-live="polite" hidden>
       <p id="ex-q" class="ex-q"></p>

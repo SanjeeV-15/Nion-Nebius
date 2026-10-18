@@ -18,7 +18,8 @@ import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
-import { loadData, applyChanges, clearData } from "./data.js";
+import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
+import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
 import { createTypedChat } from "./typed.js";
 import { createWakeLock } from "./wakelock.js";
 import { visitorId, judgePass } from "./visitor.js";
@@ -42,6 +43,10 @@ const el = {
   typedForm: document.getElementById("typed"),
   typedInput: document.getElementById("typed-input"),
   tryStrip: document.getElementById("try"),
+  panel: document.getElementById("panel"),
+  panelTitle: document.getElementById("panel-title"),
+  panelBody: document.getElementById("panel-body"),
+  panelClose: document.getElementById("panel-close"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -375,6 +380,11 @@ function handleHeard(text) {
     case "end":
       return endConversation();
 
+    case "panel":
+      session.awaiting = null;
+      clearTimeout(questionTimer);
+      return handlePanel(action.command);
+
     case "ask":
       session.awaiting = null;
       clearTimeout(questionTimer);
@@ -597,6 +607,7 @@ async function ask(question, oneShot, gps) {
     if (data.place) known.place = data.place; // worked out from GPS: remember it
     // Notebook changes (an expense, a list item...) are kept only for an answer we accept.
     if (data.changes?.length) applyChanges(data.changes);
+    if (data.ui?.length) applyUi(data.ui); // the AI opened or closed a panel
     thread.push({ role: "assistant", content: reply });
     // Save it for the History screen (only questions that got an answer).
     conversationId = recordExchange(conversationId, question, reply, data.sources);
@@ -629,6 +640,75 @@ function showExchange(question, reply, sources = []) {
   el.exSources.textContent = names.length ? `Sources: ${names.join("; ")}` : "";
 }
 
+// ---------- Notebook panels, opened by voice ----------
+//
+// "Show my to-do list" opens a panel on the page, and it stays open while you talk: add or
+// remove things and it changes as you speak. Everything on it is also said aloud, so it is
+// an extra, not something you have to look at. Closing it is "close it".
+
+let activePanel = null;
+
+function panelOptions() {
+  return { now: Date.now(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, today: currentContext(false).today };
+}
+
+function renderPanel() {
+  if (!activePanel) {
+    el.panel.hidden = true;
+    return;
+  }
+  const { title, text } = formatPanel(loadData(), activePanel, panelOptions());
+  el.panelTitle.textContent = title;
+  el.panelBody.textContent = text;
+  el.panel.hidden = false;
+}
+
+function showPanel(name) {
+  if (!PANELS.includes(name)) return false;
+  activePanel = name;
+  trace("panel", `open ${name}`);
+  renderPanel();
+  return true;
+}
+
+function hidePanel() {
+  if (!activePanel) return false;
+  activePanel = null;
+  trace("panel", "closed");
+  renderPanel();
+  return true;
+}
+
+// Notebook changes are saved, and an open panel shows them straight away.
+function applyChanges(ops) {
+  const next = saveChanges(ops);
+  if (activePanel) renderPanel();
+  return next;
+}
+
+// Screen actions the AI asked for (open or close a panel).
+function applyUi(actions = []) {
+  for (const action of actions) {
+    if (action?.ui === "show") showPanel(action.panel);
+    else if (action?.ui === "hide") hidePanel();
+  }
+}
+
+// Carries out a spoken or typed "show ..." / "close it", and returns what to say about it.
+function runPanelCommand(command) {
+  if (command.type === "open") {
+    showPanel(command.panel);
+    return spokenPanel(loadData(), command.panel, panelOptions());
+  }
+  return hidePanel() ? "Closed." : "Nothing is open right now.";
+}
+
+async function handlePanel(command) {
+  const finished = await say(runPanelCommand(command));
+  if (finished && !session.active) openFollowUp(); // so "add buy milk" needs no wake phrase
+}
+el.panelClose.addEventListener("click", () => hidePanel());
+
 // Typing instead of talking. It shares where you are and your notebook with the voice
 // side, but keeps its own conversation (see typed.js).
 const typed = createTypedChat({ known, getContext: currentContext, loadData, applyChanges, recordExchange });
@@ -637,6 +717,14 @@ async function sendTyped(text) {
   if (!text || typing) return;
   typing = true;
   el.typedInput.value = "";
+  // "Show my to-do list" / "close it": done at once, with no AI round trip, and shown as text.
+  const panelCommand = matchPanelCommand(text);
+  if (panelCommand) {
+    showProblem("");
+    showExchange(text, runPanelCommand(panelCommand));
+    typing = false;
+    return;
+  }
   showProblem("");
   if (state === "speaking" || state === "thinking") interrupt(); // typing counts as speaking up
   showExchange(text, "Thinking…");
@@ -646,7 +734,10 @@ async function sendTyped(text) {
   else if (result.error) {
     showExchange(text, "");
     showProblem(PROBLEM_TEXT[result.reason] ?? "Nion couldn't get an answer. Please try again in a moment.");
-  } else showExchange(text, result.reply, result.sources);
+  } else {
+    showExchange(text, result.reply, result.sources);
+    if (result.ui?.length) applyUi(result.ui);
+  }
 }
 el.typedForm.addEventListener("submit", (event) => {
   event.preventDefault();

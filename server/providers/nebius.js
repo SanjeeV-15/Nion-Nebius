@@ -135,7 +135,8 @@ export function createNebiusProvider({
     }
     try {
       const result = await tool.run(args, ctx);
-      const { text, sources = [], searches = 0, retryable = false, ops = [] } = typeof result === "string" ? { text: result } : result;
+      const { text, sources = [], searches = 0, retryable = false, ops = [], ui = [] } = typeof result === "string" ? { text: result } : result;
+      totals.ui.push(...ui); // screen actions, like opening a panel, for the browser to carry out
       // Notebook changes: keep them for the browser, and apply them to our working copy so
       // a second tool in the same turn sees the first one's result.
       if (ops.length > 0) {
@@ -188,7 +189,7 @@ export function createNebiusProvider({
       const fallback = !wish || wish.toLowerCase() === "none" ? undefined : wish.toLowerCase() === "same" ? useModel : wish;
       const state = { primary: useModel, model: useModel, fallback, fellBack: false };
       const thread = [{ role: "system", content: system }, ...messages];
-      const totals = { searches: 0, sources: [], errors: [], ops: [], inputTokens: 0, outputTokens: 0 };
+      const totals = { searches: 0, sources: [], errors: [], ops: [], ui: [], inputTokens: 0, outputTokens: 0 };
       const ctx = { context, location, data: data ?? emptyData() }; // what the tools can see
       const used = {}; // how many times each tool has been used for this question
       let text = "";
@@ -244,6 +245,7 @@ export function createNebiusProvider({
         outputTokens: totals.outputTokens,
         searchErrors: totals.errors,
         ops: totals.ops,
+        ui: totals.ui,
         fellBack: state.fellBack,
         model: state.model,
         refused: false,

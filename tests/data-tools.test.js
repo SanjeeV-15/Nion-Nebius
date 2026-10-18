@@ -13,7 +13,7 @@ const context = { today: "2026-10-13", nowISO: "2026-10-13T15:00:00.000Z" };
 const withData = (ops = []) => ({ data: applyOps(emptyData(), ops), context });
 
 test("the notebook tools are the ones Nion's instructions talk about", () => {
-  assert.deepEqual(Object.keys(tools).sort(), ["add_expense", "add_to_list", "cancel_reminder", "forget", "remember", "save_draft", "set_reminder", "update_list_item"]);
+  assert.deepEqual(Object.keys(tools).sort(), ["add_expense", "add_to_list", "cancel_reminder", "forget", "hide_panel", "remember", "save_draft", "set_reminder", "show_panel", "update_list_item"]);
   for (const tool of Object.values(tools)) {
     assert.equal(tool.parameters.type, "object");
     assert.ok(tool.description.length > 20);
