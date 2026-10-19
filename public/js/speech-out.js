@@ -11,6 +11,8 @@ const PREFERRED = [
   "Premium",
   "Enhanced",
   "Natural",
+  "Neural",
+  "Siri",
   "Google US English",
   "Ava",
   "Zoe",
@@ -53,13 +55,23 @@ if (speechOutSupported) {
   speechSynthesis.addEventListener?.("voiceschanged", voice);
 }
 
-function pickVoice() {
-  const english = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
+/** The most natural-sounding English voice in a list (see PREFERRED), or null if there is none. */
+export function bestVoice(list) {
+  const english = list.filter((v) => v.lang.toLowerCase().startsWith("en"));
   for (const hint of PREFERRED) {
     const match = english.find((v) => v.name.includes(hint));
     if (match) return match;
   }
   return english.find((v) => v.lang === "en-US") ?? english[0] ?? null;
+}
+
+function pickVoice() {
+  return bestVoice(speechSynthesis.getVoices());
+}
+
+/** The name of the voice Nion is speaking with (shown in the ?debug log), or null before it has chosen. */
+export function voiceName() {
+  return chosenVoice?.name ?? null;
 }
 
 // How the voice should say "Nion". Speech voices guess at unusual words (left

@@ -56,15 +56,20 @@ function writeConversations(list) {
   }
 }
 
+// History keeps one entry per sitting: everything said from when Nion was opened until the page
+// is closed. If nothing has been said for this long, the next exchange starts a fresh entry.
+export const SITTING_GAP_MS = 4 * 60 * 60 * 1000;
+
 /**
- * Save a question and its answer. Pass the id of the conversation they belong to,
- * or null to start a new one. Returns the conversation's id.
+ * Save a question and its answer. Pass the id of the History entry they belong to (the
+ * current sitting), or null to start a new one. Returns the entry's id. `now` is for tests.
  */
-export function recordExchange(conversationId, question, reply, sources = []) {
+export function recordExchange(conversationId, question, reply, sources = [], now = Date.now()) {
   const list = readConversations();
-  const now = Date.now();
 
   let conversation = conversationId ? list.find((c) => c.id === conversationId) : null;
+  // A long silence ends the sitting: this starts a new entry instead of joining a stale one.
+  if (conversation && now - (conversation.updatedAt ?? conversation.startedAt) > SITTING_GAP_MS) conversation = null;
   if (!conversation) {
     conversation = { id: `c${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`, startedAt: now, turns: [] };
     list.unshift(conversation);

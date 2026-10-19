@@ -496,7 +496,7 @@ test("after two answers that aren't a place, Nion gives up on the location", asy
 
 const saved = () => JSON.parse(storage.get("nion.conversations") ?? "[]");
 
-test("answered questions are saved for History; follow-ups join the same conversation", async () => {
+test("answered questions are saved for History, and the whole sitting is one entry", async () => {
   await startApp({ name: "Sanjeev" });
   assert.equal(saved().length, 0);
 
@@ -517,11 +517,51 @@ test("answered questions are saved for History; follow-ups join the same convers
   assert.equal(saved().length, 1);
   assert.equal(saved()[0].turns.length, 4);
 
-  // Once the window has closed, a new question starts a new conversation.
+  // Even after the follow-up window has closed, a new question is part of the same sitting.
   firePending(15000);
   await tick();
   await hear("hey nion what is the date");
   fetches[2].reply("It's Sunday.");
+  await tick();
+  assert.equal(saved().length, 1, "one entry for the whole sitting");
+  assert.equal(saved()[0].turns.length, 6);
+});
+
+test("typed questions and spoken ones in the same sitting are one History entry, in order", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the time in Denver");
+  fetches[0].reply("It's one in Denver.");
+  await tick();
+  await finishSpeaking();
+
+  elements["typed-input"].value = "add buy milk to my to-do list";
+  const done = elements.typed.handlers.submit({ preventDefault() {} });
+  await tick();
+  fetches.at(-1).respond({ reply: "Added." });
+  await done;
+
+  await finishSpeaking();
+  await hear("hey nion and what about Mumbai");
+  fetches.at(-1).reply("It's midnight.");
+  await tick();
+
+  assert.equal(saved().length, 1);
+  assert.deepEqual(saved()[0].turns.filter((t) => t.role === "user").map((t) => t.text), ["what is the time in Denver", "add buy milk to my to-do list", "and what about Mumbai"]);
+});
+
+test("opening Nion again later starts a new History entry", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what is the time in Denver");
+  fetches[0].reply("It's one in Denver.");
+  await tick();
+  assert.equal(saved().length, 1);
+
+  // A new page load is a new sitting: keep what was saved, and start the app again.
+  const keep = storage;
+  await startApp({ name: "Sanjeev" });
+  storage = keep;
+  await hear("hey nion what is the date");
+  fetches.at(-1).reply("It's Sunday.");
   await tick();
   assert.equal(saved().length, 2);
 });

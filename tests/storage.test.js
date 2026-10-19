@@ -9,8 +9,8 @@ globalThis.localStorage = {
   removeItem: (key) => data.delete(key),
 };
 
-const { recordExchange, listConversations, getConversation } = await import("../public/js/storage.js");
-const { conversationTitle, formatTranscript } = await import("../public/js/transcript.js");
+const { recordExchange, listConversations, getConversation, SITTING_GAP_MS } = await import("../public/js/storage.js");
+const { conversationTitle, formatTranscript, timeLabel } = await import("../public/js/transcript.js");
 
 test.beforeEach(() => {
   data = new Map();
@@ -70,6 +70,39 @@ test("a title is the first question, shortened if long", () => {
   assert.equal(conversationTitle({ turns: [] }), "Conversation");
 });
 
+test("a sitting with several questions is titled by the first, with how many more followed", () => {
+  const turns = (...questions) => questions.flatMap((q) => [{ role: "user", text: q }, { role: "assistant", text: "ok" }]);
+  assert.equal(conversationTitle({ turns: turns("show my to-do list") }), "show my to-do list");
+  assert.equal(conversationTitle({ turns: turns("show my to-do list", "add buy milk", "close it") }), "show my to-do list (+2 more)");
+  assert.ok(conversationTitle({ turns: turns("word ".repeat(40), "b") }).endsWith("(+1 more)"));
+});
+
+test("everything in one sitting joins one entry, however far apart the questions are", () => {
+  const start = Date.UTC(2026, 9, 18, 12, 0, 0);
+  const id = recordExchange(null, "first", "a", [], start);
+  assert.equal(recordExchange(id, "second", "b", [], start + 20 * 60_000), id);
+  assert.equal(recordExchange(id, "third", "c", [], start + 3 * 3600_000), id, "3 hours later is still the same sitting");
+  assert.equal(listConversations().length, 1);
+  assert.equal(getConversation(id).turns.length, 6);
+});
+
+test("a gap of four hours or more starts a fresh entry", () => {
+  const start = Date.UTC(2026, 9, 18, 12, 0, 0);
+  const id = recordExchange(null, "morning", "a", [], start);
+  const later = recordExchange(id, "evening", "b", [], start + SITTING_GAP_MS + 1000);
+  assert.notEqual(later, id);
+  assert.equal(listConversations().length, 2);
+  assert.equal(getConversation(id).turns.length, 2, "the morning's entry is left alone");
+});
+
+test("each line of a saved sitting carries the time it was said", () => {
+  const start = new Date(2026, 9, 18, 15, 12).getTime();
+  const id = recordExchange(null, "show my list", "Here it is.", [], start);
+  const text = formatTranscript(getConversation(id), { locale: "en-US" });
+  assert.match(text, /You \(3:12 PM\): show my list\nNion \(3:12 PM\): Here it is\./);
+  assert.equal(timeLabel(start, "en-US"), "3:12 PM");
+});
+
 test("the copied transcript is plain readable text with sources", () => {
   const id = recordExchange(null, "latest news", "According to Reuters, talks resumed.", [
     { title: "Reuters story", url: "https://reuters.com/a" },
@@ -77,6 +110,6 @@ test("the copied transcript is plain readable text with sources", () => {
   recordExchange(id, "thanks", "Anytime.");
   const text = formatTranscript(getConversation(id), { locale: "en-US" });
   assert.match(text, /^Nion conversation, /);
-  assert.match(text, /You: latest news\nNion: According to Reuters, talks resumed\.\nSources: Reuters story \(https:\/\/reuters\.com\/a\)/);
-  assert.match(text, /You: thanks\nNion: Anytime\.$/);
+  assert.match(text, /You \([^)]+\): latest news\nNion \([^)]+\): According to Reuters, talks resumed\.\nSources: Reuters story \(https:\/\/reuters\.com\/a\)/);
+  assert.match(text, /You \([^)]+\): thanks\nNion \([^)]+\): Anytime\.$/);
 });

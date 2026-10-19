@@ -16,7 +16,7 @@ import { decide } from "./conversation.js";
 import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
-import { speak, stopSpeaking, speechOutSupported } from "./speech-out.js";
+import { speak, stopSpeaking, speechOutSupported, voiceName } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
 import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
@@ -125,7 +125,7 @@ function nextFiller() {
   return FILLERS[i];
 }
 let messages = []; // the conversation so far, sent to the AI each time
-let conversationId = null; // which saved conversation (for History) the next answer belongs to
+let historyId = null; // the History entry for this sitting: everything since Nion was opened joins it, voice or typed
 let nameTries = 0;
 
 // Where the person is, once we know. It is remembered until the page is closed,
@@ -206,6 +206,8 @@ function handleProblem(reason) {
   }
 }
 
+let voiceLogged = false;
+
 // Say something. Listening stays on, so you can interrupt.
 async function say(text, { then = "waiting" } = {}) {
   const mine = ++turn;
@@ -213,6 +215,10 @@ async function say(text, { then = "waiting" } = {}) {
   echo.until = Infinity; // its voice is coming through the speakers right now
   setState("speaking");
   await speak(text);
+  if (!voiceLogged && voiceName()) {
+    voiceLogged = true;
+    trace("voice", `speaking with: ${voiceName()}`); // visible with ?debug: tells you which voice to improve
+  }
   if (mine !== turn) return false; // you interrupted: the new turn has taken over
   echo.until = Date.now() + ECHO_TAIL_MS;
   setState(then);
@@ -236,7 +242,6 @@ function closeFollowUp() {
   session.followUp = false;
   if (!session.active) {
     messages = []; // that conversation is over
-    conversationId = null;
   }
   trace("follow-up window", "closed");
   if (state === "waiting") setState("waiting");
@@ -488,7 +493,6 @@ async function startConversation() {
   refreshConvoButton();
   session.awaiting = null;
   messages = [];
-  conversationId = null;
   const name = getName();
   await say(name ? `Hey ${name}, I'm listening. Go ahead.` : "I'm listening. Go ahead.");
 }
@@ -501,7 +505,6 @@ async function endConversation() {
   refreshConvoButton();
   session.awaiting = null;
   messages = [];
-  conversationId = null;
   await say("Great, talk soon. Take care");
 }
 
@@ -536,7 +539,6 @@ async function ask(question, oneShot, gps) {
   // Otherwise the AI gets everything said so far, so follow-ups make sense.
   if (oneShot) {
     messages = [];
-    conversationId = null;
   }
   const thread = messages;
   thread.push({ role: "user", content: question });
@@ -610,7 +612,7 @@ async function ask(question, oneShot, gps) {
     if (data.ui?.length) applyUi(data.ui); // the AI opened or closed a panel
     thread.push({ role: "assistant", content: reply });
     // Save it for the History screen (only questions that got an answer).
-    conversationId = recordExchange(conversationId, question, reply, data.sources);
+    historyId = recordExchange(historyId, question, reply, data.sources);
     const finished = await say(reply);
     // After an answer, leave the follow-up window open for a moment.
     if (finished && !session.active) openFollowUp();
@@ -711,7 +713,14 @@ el.panelClose.addEventListener("click", () => hidePanel());
 
 // Typing instead of talking. It shares where you are and your notebook with the voice
 // side, but keeps its own conversation (see typed.js).
-const typed = createTypedChat({ known, getContext: currentContext, loadData, applyChanges, recordExchange });
+const typed = createTypedChat({
+  known,
+  getContext: currentContext,
+  loadData,
+  applyChanges,
+  // Typed exchanges join the same History entry as spoken ones (this sitting's).
+  recordExchange: (_ignored, question, reply, sources) => (historyId = recordExchange(historyId, question, reply, sources)),
+});
 let typing = false;
 async function sendTyped(text) {
   if (!text || typing) return;
