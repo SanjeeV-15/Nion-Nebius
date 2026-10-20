@@ -1,0 +1,14 @@
+# What Google Cloud leaves out when it builds Nion from this folder. (When this file exists,
+# gcloud does not use .gitignore, so secrets must be listed here too.)
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.tools
+node_modules
+tests
+scripts
+docs
+deploy
+*.md
