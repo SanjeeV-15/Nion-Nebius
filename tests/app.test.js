@@ -1160,3 +1160,39 @@ test("price symbols in an answer are spoken as words but still shown as written"
   assert.doesNotMatch(saidSoFar(), /\$/, "no dollar signs reach the voice");
   assert.match(elements["ex-a"].textContent, /\$\$\$\$/, "the screen keeps what was written");
 });
+
+// --- The conversation button follows the conversation ----------------------------------------------
+
+test("the button says End conversation while you talk to Nion after the wake phrase, and Start again afterwards", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.equal(elements.convo.textContent, "Start conversation");
+
+  await hear("hey nion what time is it in Denver");
+  assert.equal(elements.convo.textContent, "End conversation"); // thinking
+  fetches[0].reply("One.");
+  await tick();
+  assert.equal(elements.convo.textContent, "End conversation"); // speaking
+  await finishSpeaking();
+  assert.equal(elements.convo.textContent, "End conversation"); // the follow-up window is open
+
+  elements.convo.click(); // tap End
+  await tick();
+  assert.match(saidSoFar(), /talk soon/);
+  assert.equal(elements.convo.textContent, "Start conversation"); // not flipped back while saying goodbye
+  await finishSpeaking();
+  assert.equal(elements.convo.textContent, "Start conversation");
+});
+
+test("the button flips to End conversation when you tap Start, and back when you end it", async () => {
+  await startApp({ name: "Sanjeev" });
+  elements.convo.click(); // tap Start
+  await tick();
+  assert.equal(elements.convo.textContent, "End conversation");
+  await finishSpeaking();
+  assert.equal(elements.convo.textContent, "End conversation"); // a started conversation stays on
+
+  await hear("end the conversation");
+  assert.equal(elements.convo.textContent, "Start conversation");
+  await finishSpeaking();
+  assert.equal(elements.convo.textContent, "Start conversation");
+});

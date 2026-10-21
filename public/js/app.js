@@ -83,6 +83,7 @@ function trace(kind, detail = "") {
 el.copylog.addEventListener("click", () => navigator.clipboard?.writeText(traceLines.join("\n")));
 
 let state = "off"; // off | waiting | listening | thinking | speaking
+let sayingGoodbye = false; // Nion is saying goodbye after "End conversation"
 const session = {
   active: false, // is a conversation running?
   followUp: false, // is the follow-up window open? (see below)
@@ -178,6 +179,7 @@ function setState(next) {
   state = next;
   el.status.textContent = statusText();
   showState(next); // the icon
+  refreshConvoButton();
 }
 
 function showProblem(message) {
@@ -246,6 +248,7 @@ function closeFollowUp() {
     messages = []; // that conversation is over
   }
   trace("follow-up window", "closed");
+  refreshConvoButton();
   if (state === "waiting") setState("waiting");
 }
 
@@ -484,8 +487,16 @@ async function retryPlace() {
 }
 
 // The backup button: starts or ends a conversation without needing the wake phrase.
+// It says "End conversation" whenever you are in the middle of talking with Nion: a conversation
+// you started, the follow-up window after "hey Nion", or Nion listening, thinking or answering.
+// (Not while it says goodbye, or it would flip back to "End" the moment you tapped it.)
+function inConversation() {
+  if (sayingGoodbye) return false;
+  return session.active || session.followUp || state === "listening" || state === "thinking" || state === "speaking";
+}
+
 function refreshConvoButton() {
-  el.convo.textContent = session.active ? "End conversation" : "Start conversation";
+  el.convo.textContent = inConversation() ? "End conversation" : "Start conversation";
 }
 
 async function startConversation() {
@@ -504,10 +515,16 @@ async function endConversation() {
   clearTimeout(followUpTimer);
   session.followUp = false;
   session.active = false;
+  sayingGoodbye = true;
   refreshConvoButton();
   session.awaiting = null;
   messages = [];
-  await say("Great, talk soon. Take care");
+  try {
+    await say("Great, talk soon. Take care");
+  } finally {
+    sayingGoodbye = false;
+    refreshConvoButton();
+  }
 }
 
 // Details about the person's moment, so Nion can answer "what is today's date?".
@@ -796,7 +813,7 @@ document.addEventListener("keydown", (event) => {
 el.convo.addEventListener("click", () => {
   if (state === "off") return;
   if (state === "speaking" || state === "thinking") interrupt();
-  return session.active ? endConversation() : startConversation();
+  return inConversation() ? endConversation() : startConversation();
 });
 
 el.start.addEventListener("click", async () => {
