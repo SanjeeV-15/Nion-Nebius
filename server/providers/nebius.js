@@ -28,10 +28,13 @@ const MAX_ROUNDS = 4;
 // Everything for one question must finish within this. (The page gives up at 25 seconds.)
 const TOTAL_BUDGET_MS = 22_000;
 
-// The everyday model is given this long per request. Past it (or if it is overloaded, or
-// it gives no answer), the same request goes to the stronger model instead, because in
-// testing a model sometimes took 11 to 20 seconds, and a long silence feels broken in a voice chat.
-const PRIMARY_TIMEOUT_MS = 8_000;
+// If the everyday model has not answered after this long, the same request is ALSO sent to the
+// stronger model, and whichever answers first is used (the other is cancelled). Both models have
+// slow spells (11 to 20 seconds in testing, and 2 of the first 4 live questions waited 8 seconds
+// on Super), and a long silence feels broken in a voice chat. A normal answer takes under 3 seconds,
+// so this costs nothing most of the time. If the everyday model fails outright (overloaded, a
+// timeout), the stronger one is asked at once.
+const HEDGE_AFTER_MS = 3_000;
 // What to do when the everyday model is slow or fails: escalate to the stronger model (the
 // default), "same" tries it once more, "none" gives up, or name another model. (If the everyday
 // model is already the strongest one, escalating to it is the same as trying once more.)
@@ -75,7 +78,7 @@ export function createNebiusProvider({
   tools = [],
   // Set NION_FALLBACK_MODEL=none to turn the fallback off.
   fallbackModel = process.env.NION_FALLBACK_MODEL || DEFAULT_FALLBACK,
-  primaryTimeoutMs = PRIMARY_TIMEOUT_MS,
+  hedgeAfterMs = HEDGE_AFTER_MS,
 } = {}) {
   const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const toolDefinitions = tools.map((tool) => ({
@@ -83,12 +86,13 @@ export function createNebiusProvider({
     function: { name: tool.name, description: tool.description, parameters: tool.parameters },
   }));
 
-  async function send(body, timeoutMs) {
+  async function send(body, timeoutMs, cancel) {
+    const limit = AbortSignal.timeout(Math.max(1, timeoutMs));
     const response = await fetchImpl(new URL("chat/completions", base), {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(Math.max(1, timeoutMs)),
+      signal: cancel ? AbortSignal.any([limit, cancel]) : limit,
     });
     if (!response.ok) {
       const error = new Error(`Nebius request failed (${response.status}): ${(await response.text()).slice(0, 200)}`);
@@ -98,21 +102,69 @@ export function createNebiusProvider({
     return response.json();
   }
 
-  // One request. The main model gets a short time limit; if it is too slow or
-  // overloaded, the same request goes to the fallback model, and that model is then
-  // used for the rest of this question so the conversation stays consistent.
+  // One request. The everyday model is asked first. If it is slow (no answer after hedgeAfterMs)
+  // or fails in a way worth retrying, the stronger model is asked too, and the first answer wins:
+  // the loser is cancelled. If the stronger model wins, it is used for the rest of this question,
+  // so the conversation stays consistent.
   async function request(body, deadline, state) {
     const remaining = () => deadline - Date.now();
     const canFallBack = state.model === state.primary && Boolean(state.fallback);
-    try {
-      return await send({ ...body, model: state.model }, canFallBack ? Math.min(primaryTimeoutMs, remaining()) : remaining());
-    } catch (error) {
-      if (!canFallBack || !worthRetrying(error)) throw error;
-      console.warn(`Nebius: ${state.primary} was slow or unavailable (${error?.name === "TimeoutError" ? "timeout" : error?.status ?? error?.name}); ${state.fallback === state.primary ? "trying it once more" : `using ${state.fallback}`}.`);
-      state.model = state.fallback;
-      state.fellBack = true;
-      return send({ ...body, model: state.model }, remaining());
-    }
+    if (!canFallBack) return send({ ...body, model: state.model }, remaining());
+
+    return new Promise((resolve, reject) => {
+      const primaryCancel = new AbortController();
+      const fallbackCancel = new AbortController();
+      let settled = false;
+      let fallbackStarted = false;
+      let primaryError = null;
+      let fallbackFailed = false;
+      let hedgeTimer = null;
+
+      const win = (data, who) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(hedgeTimer);
+        (who === "fallback" ? primaryCancel : fallbackCancel).abort();
+        if (who === "fallback") {
+          state.model = state.fallback;
+          state.fellBack = true;
+        }
+        resolve(data);
+      };
+      const lose = (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(hedgeTimer);
+        primaryCancel.abort();
+        fallbackCancel.abort();
+        reject(error);
+      };
+      const askFallback = (why) => {
+        if (fallbackStarted || settled) return;
+        fallbackStarted = true;
+        console.warn(`Nebius: ${state.primary} was ${why}; ${state.fallback === state.primary ? "asking it again" : `also asking ${state.fallback}`}.`);
+        send({ ...body, model: state.fallback }, remaining(), fallbackCancel.signal).then(
+          (data) => win(data, "fallback"),
+          (error) => {
+            fallbackFailed = true;
+            if (primaryError) lose(primaryError); // both have failed
+            else if (!worthRetrying(error)) lose(error); // e.g. a rejected key: no point waiting
+          }
+        );
+      };
+
+      hedgeTimer = setTimeout(() => askFallback("slow"), hedgeAfterMs);
+      send({ ...body, model: state.primary }, remaining(), primaryCancel.signal).then(
+        (data) => win(data, "primary"),
+        (error) => {
+          if (settled) return; // cancelled because the other one answered first
+          primaryError = error;
+          if (!worthRetrying(error)) return lose(error);
+          askFallback(error?.name === "TimeoutError" ? "too slow" : `unavailable (${error?.status ?? error?.name})`);
+          if (fallbackFailed) lose(error);
+        }
+      );
+    });
   }
 
   // A tool can limit how often it may be used per question (`maxCalls`), because every

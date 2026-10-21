@@ -47,7 +47,7 @@ test("a timeout on the main model is retried on the fallback, and the answer say
   assert.deepEqual(models, ["big", "small"]);
   assert.equal(result.text, "Quick answer.");
   assert.equal(result.fellBack, true);
-  assert.match(lines[0], /big was slow or unavailable \(timeout\); using small/);
+  assert.match(lines[0], /big was too slow; also asking small/);
 });
 
 test("an overloaded main model (429 or a server error) is retried on the fallback", async () => {
@@ -74,22 +74,65 @@ test("a rejected key is not retried on another model: it would fail the same way
   await assert.rejects(make(failing).ask({ system: "S", messages }), (error) => error.status === 401);
 });
 
-test("the main model gets a short time limit, then the fallback takes over", async () => {
+// A pretend answer that arrives after `ms`, and is cancelled (not delivered) if the request is aborted first.
+function after(ms, value, options) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(value), ms);
+    options.signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(options.signal.reason ?? timeoutError());
+    });
+  });
+}
+
+test("a slow main model is raced by the stronger one, and the quick answer wins", async () => {
+  const signals = {};
   const { fetchImpl, models } = service((body, call, options) => {
-    if (body.model !== "big") return say("From the fallback.");
-    // The main model never answers; it only stops when the time limit cuts it off.
-    return new Promise((resolve, reject) =>
-      options.signal.addEventListener("abort", () => reject(options.signal.reason ?? timeoutError()))
-    );
+    signals[body.model] = options.signal;
+    return body.model === "big" ? after(500, say("Slow answer."), options) : after(5, say("Quick answer."), options);
   });
   const started = Date.now();
-  // A real network request keeps Node running while it waits; this pretend one doesn't,
-  // so hold the process open until the time limit has fired.
-  const keepAlive = setInterval(() => {}, 1000);
-  const { result } = await quietly(() => make(fetchImpl, { primaryTimeoutMs: 40 }).ask({ system: "S", messages })).finally(() => clearInterval(keepAlive));
-  assert.equal(result.text, "From the fallback.");
+  const { result, lines } = await quietly(() => make(fetchImpl, { hedgeAfterMs: 30 }).ask({ system: "S", messages }));
   assert.deepEqual(models, ["big", "small"]);
-  assert.ok(Date.now() - started < 2000, "gave up on the main model quickly");
+  assert.equal(result.text, "Quick answer.");
+  assert.equal(result.model, "small");
+  assert.equal(result.fellBack, true);
+  assert.ok(Date.now() - started < 300, "did not wait for the slow one");
+  assert.equal(signals.big.aborted, true, "the slow request was cancelled");
+  assert.match(lines[0], /big was slow; also asking small/);
+});
+
+test("if the main model does answer before the stronger one, its answer is used and the other is cancelled", async () => {
+  const signals = {};
+  const { fetchImpl } = service((body, call, options) => {
+    signals[body.model] = options.signal;
+    return body.model === "big" ? after(80, say("Main answer."), options) : after(400, say("Late answer."), options);
+  });
+  const { result } = await quietly(() => make(fetchImpl, { hedgeAfterMs: 30 }).ask({ system: "S", messages }));
+  assert.equal(result.text, "Main answer.");
+  assert.equal(result.fellBack, false);
+  assert.equal(result.model, "big");
+  assert.equal(signals.small.aborted, true, "the backup request was cancelled");
+});
+
+test("a main model that answers quickly never triggers the stronger one", async () => {
+  const { fetchImpl, models } = service((body, call, options) => after(5, say("Fast."), options));
+  const { result } = await quietly(() => make(fetchImpl, { hedgeAfterMs: 200 }).ask({ system: "S", messages }));
+  assert.deepEqual(models, ["big"]);
+  assert.equal(result.fellBack, false);
+});
+
+test("if the backup fails but the main model answers, the answer is used; if both fail, it is an error", async () => {
+  const mixed = service((body, call, options) => (body.model === "big" ? after(80, say("Main answer."), options) : Promise.reject(Object.assign(new Error("busy"), { status: 503 }))));
+  assert.equal((await quietly(() => make(mixed.fetchImpl, { hedgeAfterMs: 20 }).ask({ system: "S", messages }))).result.text, "Main answer.");
+
+  const failing = (status) => Object.assign(new Error("busy"), { status });
+  const bothFail = service((body, call, options) => after(30, null, options).then(() => { throw failing(body.model === "big" ? 503 : 429); }));
+  await assert.rejects(
+    quietly(() => make(bothFail.fetchImpl, { hedgeAfterMs: 20 }).ask({ system: "S", messages })),
+    (error) => error.status === 503 || error.status === 429,
+    "an error, not a hang, when neither model can answer"
+  );
 });
 
 test("once on the fallback, the rest of the question stays on it", async () => {

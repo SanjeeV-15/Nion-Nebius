@@ -10,7 +10,10 @@ what you see. Nothing here is run for you: you do each step, so your account and
 - **Keys never go in a file or a command.** You paste them into Google's Secret Manager, and Cloud Run hands
   them to Nion when it starts.
 - **Cost should be about $0**: Cloud Run is billed only while it handles requests and scales to zero when idle.
-  I could not read Google's own pricing page, so check the free allowance yourself (step 2).
+  Google's free-trial page (cloud.google.com/free, read 2026-10-20) says: new customers get **$300 of free credit** and
+  "won't be charged until you activate your full paid account"; and the always-free tier includes **Cloud Run: 2 million
+  requests a month**, **Cloud Build: 120 build-minutes a day**, **Secret Manager: 6 secret versions a month**,
+  **Artifact Registry: 0.5 GB** and **Cloud Shell with 5 GB of disk**. All of those cover what this guide uses.
 - **Use a PERSONAL Google account**, not your company one. A company account may block public access, and this
   is a personal project.
 - **Sign-in is the normal browser one.** Never use any "device code" or `--no-launch-browser` option.
@@ -34,8 +37,9 @@ what you see. Nothing here is run for you: you do each step, so your account and
 ## Step 2: protect your wallet
 1. **Billing > Budgets & alerts > Create budget.** Set it to **$5**, with alerts at 50%, 90% and 100%.
    A budget only **warns** you; it does not stop spending. (Our real limits are in step 5.)
-2. Read Cloud Run's **pricing page** and confirm the free monthly allowance. I expected roughly 2 million requests
-   and 180,000 vCPU-seconds, but that is unverified.
+2. Read Cloud Run's **pricing page** for the exact free allowance of CPU and memory time. Google's free-trial page
+   confirms 2 million requests a month but does not show the CPU and memory figures; I expected 180,000 vCPU-seconds
+   and 360,000 GiB-seconds, which is unverified.
 
 ## Step 3: put your keys in Secret Manager (no typing secrets into a terminal)
 In the console, open **Secret Manager** (enable it if asked) and **Create secret** three times:
@@ -111,7 +115,9 @@ A cold start of a few seconds is normal and fine. If you want it always warm dur
 `--min-instances 1` to the deploy command; that costs money while idle (check the price first).
 
 ## What I could not verify
-- Cloud Run's free allowance and whether it applies in `us-central1`.
+- Cloud Run's free CPU and memory allowance (only the 2 million requests is confirmed), and whether it applies in
+  `us-central1`; how long the $300 trial lasts and what happens when it ends (not stated on the page I read; I believe
+  90 days).
 - The exact flags, prompts and menu names above.
 - That our Dockerfile builds: it has never been built (no Docker on your Mac), so the first cloud build is the test.
 - The cold-start time, and that the microphone works on the Cloud Run address (it should, since it is https).
