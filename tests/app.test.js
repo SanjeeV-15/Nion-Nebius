@@ -1196,3 +1196,8 @@ test("the button flips to End conversation when you tap Start, and back when you
   await finishSpeaking();
   assert.equal(elements.convo.textContent, "Start conversation");
 });
+
+test("the first-visit intro is hidden once Nion is turned on", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.equal(elements.intro.hidden, true);
+});

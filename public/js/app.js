@@ -45,6 +45,7 @@ const el = {
   typedForm: document.getElementById("typed"),
   typedInput: document.getElementById("typed-input"),
   tryStrip: document.getElementById("try"),
+  intro: document.getElementById("intro"),
   panel: document.getElementById("panel"),
   panelTitle: document.getElementById("panel-title"),
   panelBody: document.getElementById("panel-body"),
@@ -822,6 +823,7 @@ el.start.addEventListener("click", async () => {
     return;
   }
   el.start.hidden = true;
+  el.intro.hidden = true;
   el.convo.hidden = false;
   showProblem("");
   listener.start();
@@ -839,6 +841,7 @@ el.start.addEventListener("click", async () => {
 
 if (!speechInSupported || !speechOutSupported) {
   el.start.hidden = true;
+  el.intro.textContent = "A travel companion. Type below or tap an example to ask about places and news, log what you spend, keep lists, set reminders.";
   el.status.textContent = "Nion needs a browser that can do speech.";
   showProblem("This browser can't listen or speak, but you can still type to Nion below. For voice, open Nion in Google Chrome.");
 }
