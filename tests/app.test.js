@@ -1148,3 +1148,15 @@ test("the main page credits NVIDIA Nemotron, Nebius Token Factory and Tavily", a
   const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
   assert.match(html, /Answers by NVIDIA Nemotron on Nebius Token Factory · web search by Tavily/);
 });
+
+// --- Symbols are never read out ------------------------------------------------------------------
+
+test("price symbols in an answer are spoken as words but still shown as written", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion I'm hungry");
+  fetches[0].reply("The Ponti downtown is $$$$ and PEMA is $$ and serves fusion food.");
+  await tick();
+  assert.match(saidSoFar(), /The Ponti downtown is very expensive and PEMA is mid-range and serves fusion food\./);
+  assert.doesNotMatch(saidSoFar(), /\$/, "no dollar signs reach the voice");
+  assert.match(elements["ex-a"].textContent, /\$\$\$\$/, "the screen keeps what was written");
+});

@@ -1,7 +1,11 @@
 // Speaking. Wraps Chrome's built-in speech synthesis, which reads text aloud
 // using a voice that is already on the computer. No account or key needed.
 
+import { speechText } from "../../shared/speech-text.js";
+
 export const speechOutSupported = "speechSynthesis" in window;
+
+export { speechText };
 
 // Voices whose names suggest a more natural sound, best first. On a Mac, the
 // "Premium" and "Enhanced" voices (a free download in System Settings) sound far
@@ -94,7 +98,7 @@ export async function speak(text, { voiceWaitMs = 1500 } = {}) {
     speechSynthesis.cancel(); // stop anything still being said
 
     const chosen = voice();
-    const sentences = splitIntoSentences(text.replace(/\bNion\b/g, SPOKEN_NAME));
+    const sentences = splitIntoSentences(speechText(text).replace(/\bNion\b/g, SPOKEN_NAME));
     let remaining = sentences.length;
     if (remaining === 0) return resolve();
 

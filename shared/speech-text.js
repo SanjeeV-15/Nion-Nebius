@@ -1,0 +1,37 @@
+// Turns an answer into what a speech voice should actually say. A voice reads symbols out loud
+// ("$$" becomes "dollar dollar"), and review sites write prices exactly that way, so an answer that
+// quotes them would sound silly. This puts words where the symbols are. The text on the screen
+// keeps its symbols; only what is spoken changes.
+//
+// No requests and no secrets, so it is easy to test.
+
+// How review sites show a price level, in words that fit a sentence ("is mid-range and serves...").
+const LEVELS = { 1: "inexpensive", 2: "mid-range", 3: "pricey", 4: "very expensive" };
+
+function money(whole, cents, scale) {
+  const w = Number(String(whole).replace(/,/g, ""));
+  if (scale) return `${whole}${cents ? `.${cents}` : ""} ${scale.toLowerCase()} dollars`;
+  if (cents && cents.length <= 2) {
+    const c = Number(cents.padEnd(2, "0"));
+    if (w === 0) return `${c} cents`;
+    return c === 0 ? `${whole} ${w === 1 ? "dollar" : "dollars"}` : `${whole} ${w === 1 ? "dollar" : "dollars"} ${c} cents`;
+  }
+  if (cents) return `${whole}.${cents} dollars`;
+  return `${whole} ${w === 1 ? "dollar" : "dollars"}`;
+}
+
+/** The words to speak for an answer: symbols for prices, "and", "percent" and the like turned into words. */
+export function speechText(text) {
+  return String(text ?? "")
+    // Amounts first: "$12" -> "12 dollars", "$12.50" -> "12 dollars 50 cents", "$3 million" -> "3 million dollars".
+    .replace(/\$\s?(\d[\d,]*)(?:\.(\d+))?(?:\s*(million|billion|trillion|thousand))?/gi, (_, whole, cents, scale) => money(whole, cents, scale))
+    // Price levels: a run of one to four dollar signs standing alone.
+    .replace(/(?<![\w$])(\${1,4})(?![\w$])/g, (_, signs) => LEVELS[signs.length])
+    .replace(/\s*&\s*/g, " and ")
+    .replace(/(\d)\s?%/g, "$1 percent")
+    .replace(/[~≈]\s?/g, "about ")
+    .replace(/^#+\s*/gm, "") // heading marks
+    .replace(/[*`]+/g, "") // stray markdown marks
+    .replace(/\s+/g, " ")
+    .trim();
+}

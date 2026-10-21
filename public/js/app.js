@@ -16,7 +16,7 @@ import { decide } from "./conversation.js";
 import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
-import { speak, stopSpeaking, speechOutSupported, voiceName } from "./speech-out.js";
+import { speak, stopSpeaking, speechOutSupported, voiceName, speechText } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
 import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
@@ -213,7 +213,7 @@ let voiceLogged = false;
 // Say something. Listening stays on, so you can interrupt.
 async function say(text, { then = "waiting" } = {}) {
   const mine = ++turn;
-  echo.text = text;
+  echo.text = speechText(text); // what is actually said, so Nion still knows its own voice when it hears it
   echo.until = Infinity; // its voice is coming through the speakers right now
   setState("speaking");
   await speak(text);
