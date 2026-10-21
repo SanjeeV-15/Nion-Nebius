@@ -132,11 +132,19 @@ test("the web search tool asks Tavily and hands back short results with site nam
   const body = JSON.parse(sent[0].options.body);
   assert.equal(body.query, "world news");
   assert.equal(body.topic, "news");
-  assert.equal(body.search_depth, "fast");
+  assert.equal(body.search_depth, "basic", "news uses the better, slightly slower search");
   assert.match(result.text, /Site: reuters\.com/, "www. is dropped");
   assert.ok(result.text.length < 800, "long snippets are cut");
   assert.equal(result.searches, 1);
   assert.equal(result.sources.length, 2);
+});
+
+test("everyday searches use the quick mode, and news and markets use the better one", async () => {
+  const sent = [];
+  const fetchImpl = async (url, options) => (sent.push(JSON.parse(options.body)), { ok: true, status: 200, json: async () => ({ results: [{ title: "T", url: "https://a.com/x", content: "c" }] }) });
+  const tool = createWebSearchTool({ apiKey: "k", fetchImpl });
+  for (const topic of ["general", "news", "finance", undefined]) await tool.run({ query: "x", topic });
+  assert.deepEqual(sent.map((b) => b.search_depth), ["fast", "basic", "basic", "fast"], "no topic means general");
 });
 
 test("the web search tool handles an empty query, no results and a bad topic", async () => {

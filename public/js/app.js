@@ -20,6 +20,7 @@ import { speak, stopSpeaking, speechOutSupported, voiceName } from "./speech-out
 import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
 import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
+import { describeAnswer } from "../../shared/models.js";
 import { createTypedChat } from "./typed.js";
 import { createWakeLock } from "./wakelock.js";
 import { visitorId, judgePass } from "./visitor.js";
@@ -40,6 +41,7 @@ const el = {
   exQ: document.getElementById("ex-q"),
   exA: document.getElementById("ex-a"),
   exSources: document.getElementById("ex-sources"),
+  exMeta: document.getElementById("ex-meta"),
   typedForm: document.getElementById("typed"),
   typedInput: document.getElementById("typed-input"),
   tryStrip: document.getElementById("try"),
@@ -605,7 +607,7 @@ async function ask(question, oneShot, gps) {
     }
 
     const { reply } = data;
-    showExchange(question, reply, data.sources);
+    showExchange(question, reply, data.sources, data);
     if (data.place) known.place = data.place; // worked out from GPS: remember it
     // Notebook changes (an expense, a list item...) are kept only for an answer we accept.
     if (data.changes?.length) applyChanges(data.changes);
@@ -634,12 +636,13 @@ async function ask(question, oneShot, gps) {
 
 // The last question and answer, shown quietly as text: for people who can't hear Nion
 // well, for a noisy place, and so a viewer can see what Nion found and where from.
-function showExchange(question, reply, sources = []) {
+function showExchange(question, reply, sources = [], meta) {
   el.exchange.hidden = false;
   el.exQ.textContent = question ? `You: ${question}` : "";
   el.exA.textContent = reply ? `Nion: ${reply}` : "";
   const names = [...new Set(sources.map((source) => source.title || source.url))].slice(0, 4);
   el.exSources.textContent = names.length ? `Sources: ${names.join("; ")}` : "";
+  el.exMeta.textContent = describeAnswer(meta); // which model answered, how fast, any search
 }
 
 // ---------- Notebook panels, opened by voice ----------
@@ -744,7 +747,7 @@ async function sendTyped(text) {
     showExchange(text, "");
     showProblem(PROBLEM_TEXT[result.reason] ?? "Nion couldn't get an answer. Please try again in a moment.");
   } else {
-    showExchange(text, result.reply, result.sources);
+    showExchange(text, result.reply, result.sources, result.meta);
     if (result.ui?.length) applyUi(result.ui);
   }
 }

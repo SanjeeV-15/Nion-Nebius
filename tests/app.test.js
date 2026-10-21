@@ -1112,3 +1112,39 @@ test("a reminder spoken while a panel is open updates the reminders panel", asyn
   assert.match(saidSoFar(), /Reminder: buy milk\./);
   assert.equal(elements["panel-body"].textContent, "No reminders.", "it was spoken, so it is no longer upcoming");
 });
+
+// --- Which model answered, shown under the answer ----------------------------------------------
+
+test("an answer shows which model made it and how fast, and the page credits the stack", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what's the latest news");
+  fetches[0].respond({ reply: "BBC reports a quiet day.", model: "nvidia/nemotron-3-super-120b-a12b", ms: 4200, searches: 1 });
+  await tick();
+  assert.equal(elements["ex-meta"].textContent, "Nemotron 3 Super · 4.2 s · 1 web search");
+
+  await finishSpeaking();
+  await hear("and the weather");
+  fetches[1].respond({ reply: "Sunny.", model: "nvidia/Nemotron-3-Ultra-550b-a55b", ms: 3300, escalated: true });
+  await tick();
+  assert.equal(elements["ex-meta"].textContent, "Nemotron 3 Ultra (stepped in) · 3.3 s", "the stronger model's help is visible");
+});
+
+test("a typed answer shows it too, and an answer with no model details shows nothing", async () => {
+  await startApp({ name: "Sanjeev" });
+  elements["typed-input"].value = "what is the date";
+  const done = elements.typed.handlers.submit({ preventDefault() {} });
+  await tick();
+  fetches.at(-1).respond({ reply: "It's Tuesday.", model: "nvidia/nemotron-3-super-120b-a12b", ms: 900 });
+  await done;
+  assert.equal(elements["ex-meta"].textContent, "Nemotron 3 Super · 0.9 s");
+
+  elements["typed-input"].value = "show my reminders";
+  await elements.typed.handlers.submit({ preventDefault() {} });
+  assert.equal(elements["ex-meta"].textContent, "", "a panel command involves no model");
+});
+
+test("the main page credits NVIDIA Nemotron, Nebius Token Factory and Tavily", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(html, /Answers by NVIDIA Nemotron on Nebius Token Factory · web search by Tavily/);
+});

@@ -58,7 +58,13 @@ export function createTypedChat({ known, getContext, loadData, applyChanges, rec
     messages = [...thread, { role: "assistant", content: data.reply }];
     if (data.changes?.length) applyChanges(data.changes);
     conversationId = recordExchange(conversationId, question, data.reply, data.sources);
-    return { reply: data.reply, sources: data.sources ?? [], ui: data.ui ?? [] };
+    return {
+      reply: data.reply,
+      sources: data.sources ?? [],
+      ui: data.ui ?? [],
+      // How the answer was made (which model, how long), when the server says.
+      ...(data.model ? { meta: { model: data.model, ms: data.ms, searches: data.searches, escalated: data.escalated } } : {}),
+    };
   }
 
   return {

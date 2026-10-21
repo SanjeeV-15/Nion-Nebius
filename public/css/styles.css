@@ -533,6 +533,20 @@ main.history {
   display: none;
 }
 
+.ex-meta {
+  margin-top: 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+.powered {
+  margin: 14px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
 .typed {
   display: flex;
   align-items: center;

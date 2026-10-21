@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { configProblem } from "./config.js";
 import { cleanData } from "../shared/store.js";
 import { createLimiter, cleanVisitorId, isJudgePass, numberSetting } from "./limits.js";
+import { chatResponse } from "./reply.js";
 
 // Stop early with a clear message if a setting is missing (instead of failing later).
 const problem = configProblem();
@@ -127,16 +128,18 @@ app.post("/api/chat", async (req, res) => {
     return res.status(429).json({ error: "Nion is taking a break.", reason: allowed.reason === "daily" ? "daily" : "visitor", retryAfterSeconds: allowed.retryAfterSeconds });
   }
 
+  const started = Date.now();
   try {
     const place = await resolveLocation(location);
     if (place?.failed) return res.json({ needsLocation: true, locationFailed: true });
 
-    const { reply, sources, usage, needsLocation, ops, ui } = await askNion({
+    const answer = await askNion({
       messages,
       context: { ...cleanContext(context), place: place?.text },
       data: cleanData(rawData),
       location: place && !place.failed ? { city: place.city, region: place.region, country: place.country } : undefined,
     });
+    const { usage, needsLocation } = answer;
     // A line per question, so you can see how much searching is going on (each
     // search costs about a cent).
     console.log(
@@ -150,7 +153,7 @@ app.post("/api/chat", async (req, res) => {
     if (needsLocation) return res.json({ needsLocation: true });
     // Tell the page which place was worked out from GPS, so it can say it and use it next time.
     // `changes` are notebook updates for the browser to apply (and keep on the device).
-    res.json({ reply, sources, place: place?.fromGps ? place.text : undefined, changes: ops?.length ? ops : undefined, ui: ui?.length ? ui : undefined });
+    res.json(chatResponse(answer, { ms: Date.now() - started, place: place?.fromGps ? place.text : undefined }));
   } catch (error) {
     console.error("AI request failed:", error?.status ?? "", error?.message ?? error);
     res.status(502).json({ error: "I'm having trouble reaching my sources.", reason: classifyFailure(error) });

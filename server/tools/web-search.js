@@ -18,6 +18,12 @@ function siteOf(url) {
   }
 }
 
+// "fast" is about a second quicker, and good enough for places and everyday questions. But for
+// news and markets it returned off-topic results in testing ("world news" brought back baseball's
+// World Series and a broccoli recipe), while "basic" returned real headlines, so those use "basic".
+// Both cost one Tavily credit.
+export const depthFor = (topic) => (topic === "general" ? "fast" : "basic");
+
 /** `fetchImpl` can be swapped in tests, so no real search or key is needed there. */
 export function createWebSearchTool({ apiKey = process.env.TAVILY_API_KEY, fetchImpl = fetch } = {}) {
   return {
@@ -55,7 +61,7 @@ export function createWebSearchTool({ apiKey = process.env.TAVILY_API_KEY, fetch
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            query, topic, search_depth: "fast", max_results: MAX_RESULTS, chunks_per_source: 1,
+            query, topic, search_depth: depthFor(topic), max_results: MAX_RESULTS, chunks_per_source: 1,
             ...(range ? { time_range: range } : {}),
           }),
           signal: AbortSignal.timeout(10_000),
