@@ -41,6 +41,14 @@ The **Notebook** page shows, ticks off, copies, exports and clears everything. T
 - **Measured results** (live benchmark, 20 checks per model, 2026-10-21): Super passed 19 of 20 (median 2.0 s, slowest 5.7 s); Ultra passed 20 of 20 (median 2.4 s, slowest 6.3 s). Details, and the earlier three-model run, are in [docs/benchmark.md](docs/benchmark.md).
 - **Not used:** Nebius Serverless or AI Cloud. The app runs on Google Cloud Run.
 
+### Where Token Factory sped up the work
+
+- **One familiar API, no SDK.** Token Factory speaks the OpenAI chat-completions format, so the whole model side is plain `fetch` calls to one URL, with no SDK to install and no GPU or inference server to set up or run.
+- **Several Nemotron models behind the same API.** Switching models is only a model id: `NION_MODEL` and `NION_FALLBACK_MODEL` in `.env`, or `--models` in the benchmark script. Comparing Super, Ultra and Nano used the same code with a different id each time.
+- **Racing two models is a small piece of code.** Because both models answer through the same endpoint, the 3-second race between Super and Ultra is one function (`request` in [`server/providers/nebius.js`](server/providers/nebius.js)), not a second integration.
+- **Tool calling worked the same way on the models used.** The 4-round tool loop (search and notebook tools) relies on tool calls from the Nemotron models, and it was built and tested against Token Factory's API.
+- **Models compared with the same code.** The same API let one benchmark script (`scripts/benchmark.mjs`) run the same ten questions against each model, which is how Nano was ruled out (see `docs/benchmark.md`).
+
 ```mermaid
 flowchart LR
   A[Browser: speech to text, notebook in localStorage] -->|question, last 20 messages, notebook copy| B[Server on Cloud Run: fair-use limits]
