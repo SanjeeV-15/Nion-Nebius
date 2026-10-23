@@ -1,8 +1,11 @@
-# Deploying Nion on Google Cloud Run (a guide for Sanjeev)
+# Deploying Nion on Google Cloud Run
 
-**Status: written, not yet run.** The commands and menu names come from my knowledge of Google Cloud
-and have not been tried. Google's screens change, so if a name differs, look for the closest one and tell me
-what you see. Nothing here is run for you: you do each step, so your account and card stay yours.
+**Status: used for the live demo.** These steps deployed Nion to Cloud Run several times (the first build with the
+Dockerfile succeeded on Google Cloud Build). Google's screens change, so if a menu name differs, look for the closest one.
+Nothing here is run for you: you do each step, so your account and card stay yours.
+
+**Cloud Shell does not overwrite an uploaded file. It renames it** (for example `nion-deploy.tar_(1).gz`), so an old copy
+can be deployed by mistake. Always clear the old copies first (step 2 of "Step 4").
 
 ## Why this way
 - **No installs.** Google Cloud Shell is a terminal that runs in your browser, with the `gcloud` tool already
@@ -14,12 +17,11 @@ what you see. Nothing here is run for you: you do each step, so your account and
   "won't be charged until you activate your full paid account"; and the always-free tier includes **Cloud Run: 2 million
   requests a month**, **Cloud Build: 120 build-minutes a day**, **Secret Manager: 6 secret versions a month**,
   **Artifact Registry: 0.5 GB** and **Cloud Shell with 5 GB of disk**. All of those cover what this guide uses.
-- **Use a PERSONAL Google account**, not your company one. A company account may block public access, and this
-  is a personal project.
+- **Use a personal Google account.** A work or school account may block public access.
 - **Sign-in is the normal browser one.** Never use any "device code" or `--no-launch-browser` option.
 
 ## Before you start (on your Mac)
-1. `cd /Users/sanjeev.kumar/Projects/nion-nebius`
+1. Open a terminal in the project folder.
 2. `npm test` (all tests pass) and `npm run preflight` (must say PASS, with no secrets found).
 3. Make the upload file from what is committed (so your `.env` can never be inside it):
    ```bash
@@ -61,10 +63,14 @@ deploy attempt tells you which account runs the service.)
 
 ## Step 4: deploy from Cloud Shell
 1. In the console click **Activate Cloud Shell** (the terminal icon, top right).
-2. In Cloud Shell, use the **three-dot menu > Upload** and choose `nion-deploy.tar.gz` from your Desktop.
+2. Clear any old copies, then use the **three-dot menu > Upload** and choose `nion-deploy.tar.gz` from your Desktop:
+   ```bash
+   cd ~ && rm -rf ~/nion && rm -f ~/nion-deploy.tar.gz ~/nion-deploy.tar_*.gz
+   ```
+   After uploading, run `ls ~` and check the file's exact name. If Cloud Shell renamed it, use that name in the next step.
 3. Run:
    ```bash
-   mkdir nion && tar xzf nion-deploy.tar.gz -C nion && cd nion
+   mkdir ~/nion && tar xzf ~/nion-deploy.tar.gz -C ~/nion && cd ~/nion
    gcloud config set project PROJECT_ID
    gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
    gcloud run deploy nion \
@@ -77,8 +83,8 @@ deploy attempt tells you which account runs the service.)
      --set-env-vars NION_DAILY_CAP=3000,NION_JUDGE_DAILY_CAP=5000
    ```
 4. If it asks to create an Artifact Registry repository, say **yes**. If it asks about unauthenticated access, say
-   **yes** (the demo must be public). The first build takes a few minutes: it is also the first time our Dockerfile
-   is ever built, so if it fails, copy me the error.
+   **yes** (the demo must be public). The first build takes a few minutes. If the deploy fails with
+   `PERMISSION_DENIED` for the default compute service account, give it the role `roles/run.builder` and deploy again.
 5. It ends by printing a **Service URL** like `https://nion-xxxxx-uc.a.run.app`.
 
 What the settings mean: `--min-instances 0` scales to zero when idle (nothing to pay); `--max-instances 1` keeps one copy
@@ -119,6 +125,6 @@ A cold start of a few seconds is normal and fine. If you want it always warm dur
   `us-central1`; how long the $300 trial lasts and what happens when it ends (not stated on the page I read; I believe
   90 days).
 - The exact flags, prompts and menu names above.
-- That our Dockerfile builds: it has never been built (no Docker on your Mac), so the first cloud build is the test.
+- (Resolved) The Dockerfile builds: Google Cloud Build built it on the first deploy.
 - The cold-start time, and that the microphone works on the Cloud Run address (it should, since it is https).
 - That the default service account can read the secrets without the extra step.
