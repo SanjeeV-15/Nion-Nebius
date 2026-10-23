@@ -48,27 +48,15 @@
       </svg>
     </div>
 
-    <p id="status" class="status" aria-live="polite">Tap the button to turn Nion on.</p>
+    <p id="status" class="status" aria-live="polite">Tap the button to talk to Nion, or type below.</p>
 
 
     <div class="actions">
       <button id="start" class="pill" type="button">Turn on Nion</button>
       <button id="convo" class="pill" type="button" hidden>Start conversation</button>
+      <!-- Only while Nion is thinking or speaking: cuts it off and goes straight back to listening. -->
+      <button id="stop" class="pill" type="button" hidden>Stop</button>
     </div>
-
-    <!-- A first visit's quick guide: what Nion is, what to say, what to look for. app.js shows and hides it. -->
-    <section id="tour" class="tour" aria-label="How to try Nion" hidden>
-      <h2>Try Nion in 30 seconds</h2>
-      <p class="tour-lead">A hands-free travel companion: ask about places and news, log what you spend, keep lists, set reminders.</p>
-      <ol>
-        <li>Tap <b>Turn on Nion</b> and allow the microphone (Chrome works best).</li>
-        <li>Say <b>“Hey Nion, what's the latest world news?”</b> It searches the web and answers.</li>
-        <li>Say <b>“Hey Nion, I just spent 12 dollars on lunch.”</b> Then <b>“show my expenses.”</b></li>
-        <li>Say <b>“Hey Nion, remind me in 5 minutes to stretch.”</b></li>
-      </ol>
-      <p class="tour-note">No microphone? Type below or tap an example. Under every answer you'll see which NVIDIA Nemotron model on Nebius Token Factory answered, how fast, and how many web searches it used.</p>
-      <button id="tour-close" class="pill small" type="button">Got it</button>
-    </section>
 
     <!-- A part of the notebook, opened by voice ("show my to-do list") and updated as things change. -->
     <section id="panel" class="panel" aria-live="polite" hidden>
@@ -101,6 +89,23 @@
       <button type="button" data-text="Remind me in 5 minutes to stretch.">remind me in 5 minutes</button>
       <button type="button" data-text="Add the old town to my to-visit list.">add a place to visit</button>
     </div>
+
+    <!-- A first visit's quick guide: what Nion is, what to say, what to look for. app.js shows and hides it. -->
+    <section id="tour" class="tour" aria-label="How to try Nion" hidden>
+      <h2>Try Nion in 30 seconds</h2>
+      <p class="tour-lead">A hands-free travel companion: ask about places and news, log what you spend, keep lists, set reminders.</p>
+      <ol>
+        <li>Tap <b>Turn on Nion</b> and allow the microphone (Chrome works best).</li>
+        <li>Say <b>“Hey Nion, what's the latest world news?”</b> It searches the web and answers.</li>
+        <li>Say <b>“Hey Nion, I just spent 12 dollars on lunch.”</b> Then <b>“show my expenses.”</b></li>
+        <li>Say <b>“Hey Nion, remind me in 5 minutes to stretch.”</b></li>
+      </ol>
+      <p class="tour-note">No microphone? Type above or tap an example. Want something to look at first? Load a sample trip, then say or type “show my expenses”. Under every answer you'll see which NVIDIA Nemotron model on Nebius Token Factory answered, how fast, and how many web searches it used.</p>
+      <div class="tour-buttons">
+        <button id="tour-sample" class="pill small" type="button">Load a sample trip</button>
+        <button id="tour-close" class="pill small" type="button">Got it</button>
+      </div>
+    </section>
 
     <p><a class="history-link" href="/notebook.html">Notebook</a> &nbsp;·&nbsp; <a class="history-link" href="/history.html">History</a> &nbsp;·&nbsp; <button id="tour-open" class="history-link linkish" type="button">How to try</button></p>
 

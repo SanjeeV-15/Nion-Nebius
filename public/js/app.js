@@ -21,6 +21,8 @@ import { getName, setName, clearName, clearConversations, recordExchange, hasTou
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
 import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
 import { describeAnswer } from "../../shared/models.js";
+import { sampleOps, hasSample, removeSampleOps } from "../../shared/sample.js";
+import { localToday } from "../../shared/store.js";
 import { createTypedChat } from "./typed.js";
 import { createWakeLock } from "./wakelock.js";
 import { visitorId, judgePass } from "./visitor.js";
@@ -31,6 +33,7 @@ import { geolocationPermission, getDevicePosition } from "./location.js";
 const el = {
   start: document.getElementById("start"),
   convo: document.getElementById("convo"),
+  stop: document.getElementById("stop"),
   status: document.getElementById("status"),
   heard: document.getElementById("heard"),
   problem: document.getElementById("problem"),
@@ -48,6 +51,7 @@ const el = {
   tour: document.getElementById("tour"),
   tourOpen: document.getElementById("tour-open"),
   tourClose: document.getElementById("tour-close"),
+  tourSample: document.getElementById("tour-sample"),
   panel: document.getElementById("panel"),
   panelTitle: document.getElementById("panel-title"),
   panelBody: document.getElementById("panel-body"),
@@ -75,7 +79,25 @@ el.tour.hidden = hasToured() || !speechInSupported || !speechOutSupported;
 el.tourClose.addEventListener("click", closeTour);
 el.tourOpen.addEventListener("click", () => {
   el.tour.hidden = false;
+  refreshSampleButton();
 });
+
+// "Load a sample trip": fills the notebook with a few example entries (marked as a sample, and
+// removed again with one tap) and opens it, so there is something to look at without talking first.
+function refreshSampleButton() {
+  el.tourSample.textContent = hasSample(loadData()) ? "Remove the sample trip" : "Load a sample trip";
+}
+el.tourSample.addEventListener("click", () => {
+  if (hasSample(loadData())) {
+    applyChanges(removeSampleOps(loadData()));
+  } else {
+    const now = new Date();
+    applyChanges(sampleOps({ now: now.getTime(), today: localToday(now) }));
+    showPanel("all");
+  }
+  refreshSampleButton();
+});
+refreshSampleButton();
 
 // Opening the page with ?debug shows a log of what Nion hears and decides, which
 // helps when something doesn't work the way it should.
@@ -176,7 +198,7 @@ const echo = { text: "", until: 0 };
 
 function statusText() {
   switch (state) {
-    case "off": return "Tap the button to turn Nion on.";
+    case "off": return "Tap the button to talk to Nion, or type below.";
     case "waiting":
       if (session.active) return "In a conversation. Just talk, or say “End the conversation.”";
       if (session.followUp) return "Go ahead, I'm still listening for a follow-up.";
@@ -513,6 +535,7 @@ function inConversation() {
 
 function refreshConvoButton() {
   el.convo.textContent = inConversation() ? "End conversation" : "Start conversation";
+  el.stop.hidden = !(state === "speaking" || state === "thinking"); // Stop only while there is something to stop
 }
 
 async function startConversation() {
@@ -819,12 +842,24 @@ document.addEventListener("visibilitychange", () => {
 // A manual way to stop Nion, for when your voice can't be heard over its own (on
 // laptop speakers the microphone hears Nion too): press Escape, or tap the circle.
 function stopNion() {
-  if (state === "speaking" || state === "thinking") interrupt();
+  if (state !== "speaking" && state !== "thinking") return;
+  const goodbye = sayingGoodbye;
+  interrupt();
+  if (goodbye) {
+    // Cutting the goodbye short: the conversation is over, so wait for "Hey Nion" again.
+    sayingGoodbye = false;
+    session.followUp = false;
+    clearTimeout(followUpTimer);
+    setState("waiting");
+  }
 }
 el.orb.addEventListener("click", stopNion);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") stopNion();
 });
+
+// Stop: cuts Nion off (its voice, or an answer it is still working on) and listens right away.
+el.stop.addEventListener("click", stopNion);
 
 el.convo.addEventListener("click", () => {
   if (state === "off") return;

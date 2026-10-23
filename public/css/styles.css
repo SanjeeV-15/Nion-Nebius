@@ -549,7 +549,7 @@ main.history {
 }
 
 .tour {
-  margin: 18px 0 16px;
+  margin: 16px 0;
   padding: 14px 16px;
   text-align: left;
   background: var(--glass);
@@ -581,6 +581,13 @@ main.history {
 .tour b {
   font-weight: 600;
   color: var(--ink);
+}
+
+.tour-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .linkish {

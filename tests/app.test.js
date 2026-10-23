@@ -1215,3 +1215,54 @@ test("the how-to-try card can be dismissed, and reopened from the Tips link", as
   assert.equal(elements.tour.hidden, true);
   assert.equal(storage.get("nion.toured"), "1");
 });
+
+test("Stop cuts Nion off and listens right away, without ending the conversation", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.equal(elements.stop.hidden, true, "nothing to stop while idle");
+
+  elements.convo.click(); // start a conversation
+  await tick();
+  await finishSpeaking();
+  await hear("tell me about Denver");
+  assert.equal(elements.stop.hidden, false, "shown while thinking");
+  fetches.at(-1).reply("Denver is the capital of Colorado. It sits a mile above the sea.");
+  await tick();
+  assert.equal(elements.stop.hidden, false, "shown while speaking");
+
+  elements.stop.click();
+  await tick();
+  assert.equal(elements.stop.hidden, true);
+  assert.match(status(), /Listening/);
+  assert.equal(pending.length, 0, "the voice was cut off");
+  assert.equal(elements.convo.textContent, "End conversation", "still in the conversation");
+
+  await hear("and what about Boulder"); // no wake phrase needed
+  assert.equal(fetches.length, 2, "it hears the next question straight away");
+});
+
+test("Stop during the goodbye cuts it short", async () => {
+  await startApp({ name: "Sanjeev" });
+  elements.convo.click();
+  await tick();
+  await finishSpeaking();
+  elements.convo.click(); // End: Nion says goodbye
+  await tick();
+  assert.equal(elements.stop.hidden, false);
+  elements.stop.click();
+  await tick();
+  assert.equal(elements.stop.hidden, true);
+  assert.equal(elements.convo.textContent, "Start conversation");
+});
+
+test("Load a sample trip fills the notebook and opens it; tapping again removes it", async () => {
+  await startApp({ name: "Sanjeev" });
+  assert.equal(elements["tour-sample"].textContent, "Load a sample trip");
+  elements["tour-sample"].click();
+  assert.match(storage.get("nion.data"), /sample-e1/);
+  assert.equal(elements["panel-title"].textContent, "Notebook", "the notebook opens so there is something to see");
+  assert.equal(elements["tour-sample"].textContent, "Remove the sample trip");
+
+  elements["tour-sample"].click();
+  assert.doesNotMatch(storage.get("nion.data"), /sample-/);
+  assert.equal(elements["tour-sample"].textContent, "Load a sample trip");
+});
