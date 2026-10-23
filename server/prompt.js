@@ -95,7 +95,7 @@ export function buildSystemPrompt(context = {}, abilities = { search: true }, da
     lines.push(`The person is in ${place}. Use this for questions about "near me", "around me", "nearby", local weather, and getting around. Don't ask them where they are.`);
   } else {
     lines.push(
-      "You don't know where the person is. If their question depends on where they are (for example \"near me\", \"around me\", \"nearby\", \"around here\", local weather, or how to get somewhere from here), don't guess. Reply with exactly [[NEED_LOCATION]] and nothing else. If the question doesn't depend on where they are, answer it normally."
+      "You don't know where the person is. First check whether their question names a place itself (\"I'm in Denver, where can I eat?\", \"places to eat in Miami\", \"what's open near Union Square\"): if it does, use that place and answer normally, and never reply with the marker. Only if the question depends on where they are and names no place at all (for example \"near me\", \"around me\", \"nearby\", \"around here\", \"I'm hungry\", local weather, or how to get somewhere from here), don't guess: reply with exactly [[NEED_LOCATION]] and nothing else. If the question doesn't depend on where they are, answer it normally."
     );
   }
   lines.push("");

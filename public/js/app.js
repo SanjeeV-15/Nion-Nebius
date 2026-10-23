@@ -16,6 +16,7 @@ import { decide } from "./conversation.js";
 import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
+import { watchEarphones } from "./earphones.js";
 import { speak, stopSpeaking, speechOutSupported, voiceName, speechText } from "./speech-out.js";
 import { getName, setName, clearName, clearConversations, recordExchange, hasToured, setToured } from "./storage.js";
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
@@ -241,11 +242,32 @@ function showProblem(message) {
 // stop listening. (It can't listen in the background: that needs a native app.)
 const wakeLock = createWakeLock();
 
+// With earphones on, Nion's own voice can't leak into the microphone, so it can stop talking the
+// moment you start, instead of waiting for Chrome to write down two whole words. (See earphones.js:
+// anything unclear counts as speakers, where this stays off.)
+let earphones = false;
+const earphoneWatch = watchEarphones(({ on, label }) => {
+  if (on !== earphones) trace("earphones", on ? `detected (${label})` : "not detected");
+  earphones = on;
+});
+
+function handleSpeechStart() {
+  if (!earphones || locating) return;
+  if (state === "speaking" || state === "thinking") {
+    trace("interrupt", "speech started (earphones)");
+    interrupt();
+  }
+}
+
 const listener = createListener({
   onText: handleHeard,
   onInterim: handleInterim,
   onProblem: handleProblem,
-  onEvent: (name) => trace("mic", name),
+  onSpeechStart: handleSpeechStart,
+  onEvent: (name) => {
+    trace("mic", name);
+    if (name === "recogniser started") earphoneWatch.check(); // device names are visible once the microphone is allowed
+  },
 });
 
 function handleProblem(reason) {

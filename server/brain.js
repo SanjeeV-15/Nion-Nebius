@@ -9,6 +9,7 @@ import { buildSystemPrompt } from "./prompt.js";
 import { createNebiusProvider } from "./providers/nebius.js";
 import { createWebSearchTool } from "./tools/web-search.js";
 import { createDataTools } from "./tools/data-tools.js";
+import { placeNamedIn } from "../shared/place-text.js";
 
 // What Nion writes, instead of an answer, when a question depends on where the
 // person is and it doesn't know. (See the rules in prompt.js.)
@@ -44,14 +45,34 @@ export async function completeShort(prompt, provider) {
 export async function askNion({ messages, context, location, model, provider, data }) {
   provider ??= defaultProvider ??= createProvider();
 
-  const result = await provider.ask({
-    system: buildSystemPrompt(context, provider.abilities, data),
-    messages,
-    context,
-    location,
-    model,
-    data,
-  });
+  const run = (ctx) =>
+    provider.ask({
+      system: buildSystemPrompt(ctx, provider.abilities, data),
+      messages,
+      context: ctx,
+      location,
+      model,
+      data,
+    });
+
+  let result = await run(context);
+
+  // The AI asked where the person is, but the question itself may already say ("I'm in Denver, where
+  // can I eat?" or "places to eat in Miami"). If so, ask again with that place instead of making them repeat it.
+  if (result.text?.includes(NEED_LOCATION) && !context?.place) {
+    const named = placeNamedIn([...messages].reverse().find((m) => m.role === "user")?.content);
+    if (named) {
+      const first = result;
+      result = await run({ ...context, place: named });
+      result = {
+        ...result,
+        searches: (first.searches ?? 0) + (result.searches ?? 0),
+        inputTokens: (first.inputTokens ?? 0) + (result.inputTokens ?? 0),
+        outputTokens: (first.outputTokens ?? 0) + (result.outputTokens ?? 0),
+        searchErrors: [...(first.searchErrors ?? []), ...(result.searchErrors ?? [])],
+      };
+    }
+  }
 
   const { searches, inputTokens, outputTokens, searchErrors } = result;
   const usage = { searches, inputTokens, outputTokens, searchErrors, fellBack: result.fellBack === true, ...(result.model ? { model: result.model } : {}) };

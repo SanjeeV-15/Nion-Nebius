@@ -1307,3 +1307,40 @@ test("asleep, ordinary talk that starts with 'hey' is not sent anywhere", async 
   assert.equal(fetches.length, 0);
   assert.match(status(), /Waiting/);
 });
+
+// --- Stopping the moment you talk over Nion, with earphones ---------------------------------------
+
+async function startWithOutputDevice(label) {
+  globalThis.navigator.mediaDevices = {
+    enumerateDevices: async () => [{ kind: "audiooutput", deviceId: "default", label }],
+    addEventListener() {},
+  };
+  try {
+    await startApp({ name: "Sanjeev" });
+    FakeRecognition.last.onstart?.(); // the microphone started: device names are readable now
+    await tick();
+    await hear("hey nion tell me about Denver");
+    fetches.at(-1).reply("Denver is the capital of Colorado. It sits a mile above the sea. It has many mountains nearby.");
+    await tick();
+  } finally {
+    delete globalThis.navigator.mediaDevices;
+  }
+}
+
+test("with earphones, the moment you start talking Nion stops, before Chrome has written any words", async () => {
+  await startWithOutputDevice("Default - AirPods Pro");
+  assert.match(status(), /Speaking/);
+  FakeRecognition.last.onspeechstart(); // sound that looks like speech, no words yet
+  await tick();
+  assert.equal(pending.length, 0, "the voice was cut off");
+  assert.match(status(), /Listening/);
+});
+
+test("on speakers, speech-like sound does not stop Nion, because it may be Nion's own voice", async () => {
+  await startWithOutputDevice("Default - MacBook Pro Speakers");
+  assert.match(status(), /Speaking/);
+  FakeRecognition.last.onspeechstart();
+  await tick();
+  assert.ok(pending.length > 0, "Nion keeps talking");
+  assert.match(status(), /Speaking/);
+});

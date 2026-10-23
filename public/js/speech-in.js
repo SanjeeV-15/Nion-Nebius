@@ -13,12 +13,13 @@ export const speechInSupported = Boolean(SpeechRecognition);
  *                      talking, before the phrase is finished (lets Nion react
  *                      quickly when it is interrupted)
  *   onProblem(reason): called with "mic-blocked" or "network" when listening can't work
+ *   onSpeechStart():   called the moment speech-like sound begins (earlier than any words)
  *   onEvent(name):     called when Chrome's recogniser starts, stops, hears sound or
  *                      speech, or fails. Only used to show what is happening when
  *                      something doesn't work.
  * Returns { start(), stop() }.
  */
-export function createListener({ onText, onInterim, onProblem, onEvent }) {
+export function createListener({ onText, onInterim, onProblem, onEvent, onSpeechStart }) {
   let recognition = null;
   let wanted = false; // do we want to be listening right now?
   let restartTimer = null;
@@ -39,7 +40,10 @@ export function createListener({ onText, onInterim, onProblem, onEvent }) {
     };
 
     r.onstart = () => onEvent?.("recogniser started");
-    r.onspeechstart = () => onEvent?.("speech detected");
+    r.onspeechstart = () => {
+      onEvent?.("speech detected");
+      onSpeechStart?.(); // sound that looks like speech began, before any words are written down
+    };
     r.onspeechend = () => onEvent?.("speech ended");
 
     r.onerror = (event) => {
