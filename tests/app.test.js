@@ -1280,3 +1280,13 @@ test("in Safari, Nion offers typing instead of a voice button that would not wor
     globalThis.navigator.userAgent = before;
   }
 });
+
+test("'Hey Nion' written by Chrome as the single word 'Indian', then the question as its own phrase, is answered", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("Indian"); // the wake phrase, as Chrome wrote it in real use
+  assert.equal(fetches.length, 0, "nothing to ask yet");
+  assert.match(status(), /Listening/);
+  await hear("what time is it in Denver"); // the question, said after a pause
+  assert.equal(fetches.length, 1, "the question after the lone wake word is sent");
+  assert.equal(fetches[0].body.messages.at(-1).content, "what time is it in Denver");
+});

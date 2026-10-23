@@ -27,6 +27,14 @@ const MISHEARD_WAKE = new RegExp(
   "i"
 );
 
+// "Hey Nion" said on its own, then a pause, often arrives as a single word: in testing Chrome wrote
+// just "Indian" (and the question followed as a separate phrase). That only counts as the wake phrase
+// when it is the whole thing heard, so "Indian food in Denver" does not wake Nion.
+const LONE_MISHEARD = /^\s*(?:indian|neon|nion|nyan|any\s?on|any\s?neon|a\s?neon)[\s,.!?-]*$/i;
+
+// The name heard a second time right after the wake phrase ("hey Neon Indian"): not a question.
+const NAME_AGAIN = /^(?:indian|neon|nion|nyan|any\s?on)[\s,.!?-]*$/i;
+
 // Spoken commands that control a conversation.
 const START_CONVERSATION =
   /\b(?:start|begin|have|open)\s+(?:a|the|our|another)?\s*(?:new\s+)?(?:conversation|chat|talk)\b/i;
@@ -60,13 +68,15 @@ export function detectCommand(text) {
  */
 export function parseUtterance(text) {
   const heard = String(text ?? "");
+  if (LONE_MISHEARD.test(heard)) return { woke: true, question: "", command: null };
   const match = WAKE.exec(heard) ?? MISHEARD_WAKE.exec(heard);
   if (!match) return { woke: false };
 
-  const question = heard
+  const after = heard
     .slice(match.index + match[0].length)
     .replace(/^[\s,.!?-]+/, "")
     .trim();
+  const question = NAME_AGAIN.test(after) ? "" : after;
 
   return { woke: true, question, command: detectCommand(question) };
 }

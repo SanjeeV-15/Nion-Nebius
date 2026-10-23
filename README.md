@@ -86,7 +86,7 @@ Open `/?debug` to see a log of what Nion hears and decides, and `/?reset` to for
 ## Tests and checks
 
 ```bash
-npm test             # 361 tests; they use pretend services, so no keys are needed and nothing is spent
+npm test             # 365 tests; they use pretend services, so no keys are needed and nothing is spent
 npm run preflight    # scans for secrets before you push or upload anything
 node scripts/benchmark.mjs                       # a free dry run of the benchmark (pretend service)
 node --env-file=.env scripts/benchmark.mjs --live    # the real benchmark: makes paid requests

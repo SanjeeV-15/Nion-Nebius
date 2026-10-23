@@ -44,6 +44,26 @@ test("does not wake on longer words that only start like the name", () => {
   assert.equal(parseUtterance("hey nionic is a word").woke, false);
 });
 
+test("'Hey Nion' that Chrome wrote as one lone word still wakes Nion (seen in real use)", () => {
+  for (const heard of ["Indian", "indian.", "Neon", "any on", "Nion"]) {
+    const result = parseUtterance(heard);
+    assert.equal(result.woke, true, `should wake for: ${heard}`);
+    assert.equal(result.question, "", `no question yet for: ${heard}`);
+  }
+});
+
+test("a mishearing inside a longer sentence does not wake Nion", () => {
+  for (const heard of ["Indian food in Denver", "I like neon lights", "an Indian restaurant near me", "anyone there"]) {
+    assert.equal(parseUtterance(heard).woke, false, `should ignore: ${heard}`);
+  }
+});
+
+test("the name heard twice after the wake phrase is not taken as the question", () => {
+  const result = parseUtterance("hey Neon Indian");
+  assert.equal(result.woke, true);
+  assert.equal(result.question, "");
+});
+
 test("finds the wake phrase in the middle of what was heard", () => {
   const result = parseUtterance("so um hey nion what's the weather like");
   assert.equal(result.woke, true);
