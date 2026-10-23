@@ -1,4 +1,4 @@
-// How a model's name, speed and searches are shown under an answer: "Nemotron 3 Super · 1.9 s".
+// How a model's name, speed and searches are shown under an answer: "NVIDIA Nemotron 3 Super · Nebius Token Factory · 1.9 s".
 // It lets a viewer (a judge, say) see which model answered, how fast, and when the stronger
 // one stepped in. No requests and no secrets, so it is easy to test.
 
@@ -22,8 +22,9 @@ export function modelLabel(id) {
  */
 export function describeAnswer(meta) {
   if (!meta?.model) return "";
-  const parts = [modelLabel(meta.model) + (meta.escalated ? " (stepped in)" : "")];
+  const label = modelLabel(meta.model);
+  const parts = [(label.startsWith("Nemotron") ? "NVIDIA " : "") + label + (meta.escalated ? " (stepped in)" : ""), "Nebius Token Factory"];
   if (Number.isFinite(meta.ms) && meta.ms >= 0) parts.push(`${(meta.ms / 1000).toFixed(1)} s`);
-  if (meta.searches > 0) parts.push(`${meta.searches} web search${meta.searches === 1 ? "" : "es"}`);
+  if (meta.searches > 0) parts.push(`${meta.searches} web search${meta.searches === 1 ? "" : "es"} (Tavily)`);
   return parts.join(" · ");
 }

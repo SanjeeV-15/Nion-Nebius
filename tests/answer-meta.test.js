@@ -17,10 +17,10 @@ test("model ids get friendly names; unknown ones lose their vendor prefix", () =
 });
 
 test("the line shows the model, the time, any search, and when the stronger model stepped in", () => {
-  assert.equal(describeAnswer({ model: "nvidia/nemotron-3-super-120b-a12b", ms: 1930 }), "Nemotron 3 Super · 1.9 s");
-  assert.equal(describeAnswer({ model: "nvidia/nemotron-3-super-120b-a12b", ms: 4200, searches: 1 }), "Nemotron 3 Super · 4.2 s · 1 web search");
-  assert.equal(describeAnswer({ model: "nvidia/Nemotron-3-Ultra-550b-a55b", ms: 3400, searches: 2, escalated: true }), "Nemotron 3 Ultra (stepped in) · 3.4 s · 2 web searches");
-  assert.equal(describeAnswer({ model: "nvidia/nemotron-3-super-120b-a12b" }), "Nemotron 3 Super", "no time known");
+  assert.equal(describeAnswer({ model: "nvidia/nemotron-3-super-120b-a12b", ms: 1930 }), "NVIDIA Nemotron 3 Super · Nebius Token Factory · 1.9 s");
+  assert.equal(describeAnswer({ model: "nvidia/nemotron-3-super-120b-a12b", ms: 4200, searches: 1 }), "NVIDIA Nemotron 3 Super · Nebius Token Factory · 4.2 s · 1 web search (Tavily)");
+  assert.equal(describeAnswer({ model: "nvidia/Nemotron-3-Ultra-550b-a55b", ms: 3400, searches: 2, escalated: true }), "NVIDIA Nemotron 3 Ultra (stepped in) · Nebius Token Factory · 3.4 s · 2 web searches (Tavily)");
+  assert.equal(describeAnswer({ model: "nvidia/nemotron-3-super-120b-a12b" }), "NVIDIA Nemotron 3 Super · Nebius Token Factory", "no time known");
 });
 
 test("nothing is shown when the server did not say which model answered", () => {

@@ -17,7 +17,7 @@ import { parseUtterance } from "./wake.js";
 import { isEcho, isInterruption, stripLeadingEcho, stripPhrase } from "./echo.js";
 import { createListener, speechInSupported } from "./speech-in.js";
 import { speak, stopSpeaking, speechOutSupported, voiceName, speechText } from "./speech-out.js";
-import { getName, setName, clearName, clearConversations, recordExchange } from "./storage.js";
+import { getName, setName, clearName, clearConversations, recordExchange, hasToured, setToured } from "./storage.js";
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
 import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
 import { describeAnswer } from "../../shared/models.js";
@@ -45,7 +45,9 @@ const el = {
   typedForm: document.getElementById("typed"),
   typedInput: document.getElementById("typed-input"),
   tryStrip: document.getElementById("try"),
-  intro: document.getElementById("intro"),
+  tour: document.getElementById("tour"),
+  tourOpen: document.getElementById("tour-open"),
+  tourClose: document.getElementById("tour-close"),
   panel: document.getElementById("panel"),
   panelTitle: document.getElementById("panel-title"),
   panelBody: document.getElementById("panel-body"),
@@ -60,7 +62,20 @@ if (params.has("reset")) {
   clearName();
   clearConversations();
   clearData();
+  setToured(false);
 }
+
+// "How to try Nion": a short card for a first visit (what to say, what to look for). It closes
+// when dismissed or when Nion is turned on, and the Tips link brings it back.
+function closeTour() {
+  el.tour.hidden = true;
+  setToured();
+}
+el.tour.hidden = hasToured() || !speechInSupported || !speechOutSupported;
+el.tourClose.addEventListener("click", closeTour);
+el.tourOpen.addEventListener("click", () => {
+  el.tour.hidden = false;
+});
 
 // Opening the page with ?debug shows a log of what Nion hears and decides, which
 // helps when something doesn't work the way it should.
@@ -823,7 +838,7 @@ el.start.addEventListener("click", async () => {
     return;
   }
   el.start.hidden = true;
-  el.intro.hidden = true;
+  closeTour();
   el.convo.hidden = false;
   showProblem("");
   listener.start();
@@ -841,7 +856,6 @@ el.start.addEventListener("click", async () => {
 
 if (!speechInSupported || !speechOutSupported) {
   el.start.hidden = true;
-  el.intro.textContent = "A travel companion. Type below or tap an example to ask about places and news, log what you spend, keep lists, set reminders.";
   el.status.textContent = "Nion needs a browser that can do speech.";
   showProblem("This browser can't listen or speak, but you can still type to Nion below. For voice, open Nion in Google Chrome.");
 }

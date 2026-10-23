@@ -30,6 +30,26 @@ export function clearName() {
   }
 }
 
+// Has this person seen the "how to try Nion" card? (Shown once, then only from the Tips link.)
+const TOURED_KEY = "nion.toured";
+
+export function hasToured() {
+  try {
+    return localStorage.getItem(TOURED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setToured(seen = true) {
+  try {
+    if (seen) localStorage.setItem(TOURED_KEY, "1");
+    else localStorage.removeItem(TOURED_KEY);
+  } catch {
+    // Not saved: the card simply shows again next time.
+  }
+}
+
 // ---------- conversations (for the History screen) ----------
 //
 // Each conversation is saved as { id, startedAt, updatedAt, turns: [...] }. A turn is
