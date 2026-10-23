@@ -1,6 +1,6 @@
 # README facts: setup, running, and how the models are used
 
-Plain facts and steps for the README, checked against the code on 2026-10-23. This is not the README itself: the story, the "why" and the wording are yours. Copy, cut or reorder what you need.
+Plain facts and steps for the README, checked against the code on 2026-10-22. This is not the README itself: the story, the "why" and the wording are yours. Copy, cut or reorder what you need.
 
 ## What you need
 - **Node.js 22 or newer** (`package.json` says `"node": ">=22"`).
