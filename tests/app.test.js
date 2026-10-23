@@ -1266,3 +1266,17 @@ test("Load a sample trip fills the notebook and opens it; tapping again removes 
   assert.doesNotMatch(storage.get("nion.data"), /sample-/);
   assert.equal(elements["tour-sample"].textContent, "Load a sample trip");
 });
+
+test("in Safari, Nion offers typing instead of a voice button that would not work", async () => {
+  const before = globalThis.navigator.userAgent;
+  globalThis.navigator.userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+  try {
+    await startApp({ name: "Sanjeev" });
+    assert.equal(elements.start.hidden, true);
+    assert.match(status(), /Voice works best in Chrome/);
+    assert.match(elements.problem.textContent, /Chrome, or type below/);
+    assert.match(elements["tour-steps"].innerHTML, /show my expenses/);
+  } finally {
+    globalThis.navigator.userAgent = before;
+  }
+});

@@ -23,6 +23,7 @@ import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../share
 import { describeAnswer } from "../../shared/models.js";
 import { sampleOps, hasSample, removeSampleOps } from "../../shared/sample.js";
 import { localToday } from "../../shared/store.js";
+import { voiceLikelyWorks } from "./browser.js";
 import { createTypedChat } from "./typed.js";
 import { createWakeLock } from "./wakelock.js";
 import { visitorId, judgePass } from "./visitor.js";
@@ -52,6 +53,8 @@ const el = {
   tourOpen: document.getElementById("tour-open"),
   tourClose: document.getElementById("tour-close"),
   tourSample: document.getElementById("tour-sample"),
+  tourSteps: document.getElementById("tour-steps"),
+  tourNote: document.getElementById("tour-note"),
   panel: document.getElementById("panel"),
   panelTitle: document.getElementById("panel-title"),
   panelBody: document.getElementById("panel-body"),
@@ -75,7 +78,16 @@ function closeTour() {
   el.tour.hidden = true;
   setToured();
 }
-el.tour.hidden = hasToured() || !speechInSupported || !speechOutSupported;
+// Voice needs Chrome-style speech recognition. Elsewhere (Safari, say) Nion offers typing instead.
+const voiceOk = speechInSupported && speechOutSupported && voiceLikelyWorks(globalThis.navigator?.userAgent);
+el.tour.hidden = hasToured();
+if (!voiceOk) {
+  el.tourSteps.innerHTML =
+    "<li>Type <b>“What's the latest world news?”</b> in the box above, or tap an example. It searches the web and answers.</li>" +
+    "<li>Tap <b>Load a sample trip</b>, then type <b>“show my expenses”</b>.</li>" +
+    "<li>Type <b>“I just spent 12 dollars on lunch.”</b> and then <b>“show my expenses”</b> again.</li>";
+  el.tourNote.textContent = "Voice (saying “Hey Nion”) works in Google Chrome. Under every answer you'll see which NVIDIA Nemotron model on Nebius Token Factory answered, how fast, and how many web searches it used.";
+}
 el.tourClose.addEventListener("click", closeTour);
 el.tourOpen.addEventListener("click", () => {
   el.tour.hidden = false;
@@ -868,8 +880,8 @@ el.convo.addEventListener("click", () => {
 });
 
 el.start.addEventListener("click", async () => {
-  if (!speechInSupported || !speechOutSupported) {
-    showProblem("This browser can't do speech. Please open Nion in Chrome.");
+  if (!voiceOk) {
+    showProblem("This browser can't do hands-free voice. Please open Nion in Chrome, or type below.");
     return;
   }
   el.start.hidden = true;
@@ -889,8 +901,8 @@ el.start.addEventListener("click", async () => {
   }
 });
 
-if (!speechInSupported || !speechOutSupported) {
+if (!voiceOk) {
   el.start.hidden = true;
-  el.status.textContent = "Nion needs a browser that can do speech.";
-  showProblem("This browser can't listen or speak, but you can still type to Nion below. For voice, open Nion in Google Chrome.");
+  el.status.textContent = "Voice works best in Chrome. You can type to Nion below.";
+  showProblem("Hands-free voice needs Google Chrome (this browser can't do it reliably). You can still type to Nion below.");
 }
