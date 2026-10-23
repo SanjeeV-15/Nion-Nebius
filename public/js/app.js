@@ -22,6 +22,7 @@ import { getName, setName, clearName, clearConversations, recordExchange, hasTou
 import { loadData, applyChanges as saveChanges, clearData } from "./data.js";
 import { formatPanel, spokenPanel, matchPanelCommand, PANELS } from "../../shared/panels.js";
 import { describeAnswer } from "../../shared/models.js";
+import { screenText, sourceName } from "../../shared/screen-text.js";
 import { sampleOps, hasSample, removeSampleOps } from "../../shared/sample.js";
 import { localToday } from "../../shared/store.js";
 import { voiceLikelyWorks } from "./browser.js";
@@ -696,7 +697,7 @@ async function ask(question, oneShot, gps) {
       return askForLocation(question, oneShot, data.locationFailed);
     }
 
-    const { reply } = data;
+    const reply = screenText(data.reply); // markdown marks and list dashes taken out, for the screen, History and the next turn
     showExchange(question, reply, data.sources, data);
     if (data.place) known.place = data.place; // worked out from GPS: remember it
     // Notebook changes (an expense, a list item...) are kept only for an answer we accept.
@@ -730,7 +731,7 @@ function showExchange(question, reply, sources = [], meta) {
   el.exchange.hidden = false;
   el.exQ.textContent = question ? `You: ${question}` : "";
   el.exA.textContent = reply ? `Nion: ${reply}` : "";
-  const names = [...new Set(sources.map((source) => source.title || source.url))].slice(0, 4);
+  const names = [...new Set(sources.map(sourceName))].slice(0, 4); // short readable names, never a raw address
   el.exSources.textContent = names.length ? `Sources: ${names.join("; ")}` : "";
   el.exMeta.textContent = describeAnswer(meta); // which model answered, how fast, any search
 }

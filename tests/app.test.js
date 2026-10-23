@@ -1344,3 +1344,27 @@ test("on speakers, speech-like sound does not stop Nion, because it may be Nion'
   assert.ok(pending.length > 0, "Nion keeps talking");
   assert.match(status(), /Speaking/);
 });
+
+test("on screen, markdown marks and list dashes are gone and sources show short names (the voice path)", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what's a good place to eat in Lisbon");
+  fetches.at(-1).respond({
+    reply: "A few spots: **Prado** in Chiado. - Bairro do Avillez, mid-range.",
+    sources: [
+      { title: "", url: "https://www.thevegetarianhannibal.com/best-vegetarian-restaurants-in-lisbon/" },
+      { title: "What are the best restaurants to try when visiting Lisbon? What should you try while you're there? - Quora", url: "https://quora.com/x" },
+    ],
+  });
+  await tick();
+  assert.equal(elements["ex-a"].textContent, "Nion: A few spots: Prado in Chiado. Bairro do Avillez, mid-range.");
+  assert.equal(elements["ex-sources"].textContent, "Sources: thevegetarianhannibal.com; What are the best restaurants to try when visit…");
+});
+
+test("the spoken answer names a site instead of reading its web address", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey nion what's the news");
+  fetches.at(-1).reply("Per restaurantor.com, Work and Class is open.");
+  await tick();
+  assert.match(saidSoFar(), /per restaurantor, Work and Class/i);
+  assert.doesNotMatch(saidSoFar(), /dot com|restaurantor\.com/i);
+});

@@ -47,6 +47,25 @@ test("other symbols a voice would read awkwardly are turned into words, and ordi
   assert.equal(speechText(undefined), "");
 });
 
+test("web addresses and site names are spoken as the site's name, never with 'dot com' or slashes", () => {
+  assert.equal(speechText("According to a diner review on los-chingones-dtc.goto-where.com."), "According to a diner review on goto where.");
+  assert.equal(speechText("Work & Class offers comfort food, per restaurantor.com."), "Work and Class offers comfort food, per restaurantor.");
+  assert.equal(speechText("See https://www.bbc.com/news/world-12345 for more."), "See bbc for more.");
+  assert.equal(speechText("Reviewed at https://thevegetarianhannibal.com/best-vegetarian-restaurants-in-lisbon/ today."), "Reviewed at thevegetarianhannibal today.");
+  assert.equal(speechText("The Guardian (theguardian.com) and bbc.co.uk agree."), "The Guardian (theguardian) and bbc agree.");
+});
+
+test("ordinary text with full stops, numbers or product names is left alone", () => {
+  for (const plain of [
+    "It opened in Lisbon.It was busy.",
+    "Version 3.5 shipped. It runs on Node.js and Next.js.",
+    "Meet at 5 p.m. near the U.S. consulate, e.g. at noon.",
+    "The price rose 2.5 percent to 4.20 dollars.",
+  ]) {
+    assert.equal(speechText(plain), plain);
+  }
+});
+
 test("a dash or bullet used as a list marker is not spoken, but hyphens and ranges are kept", () => {
   assert.equal(
     speechText("Here are the latest headlines: - In France, a gunman opened fire (Euronews). - Russian strikes hit Kyiv (WORLD)."),

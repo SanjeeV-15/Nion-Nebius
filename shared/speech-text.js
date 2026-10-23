@@ -20,9 +20,26 @@ function money(whole, cents, scale) {
   return `${whole} ${w === 1 ? "dollar" : "dollars"}`;
 }
 
+// A web address or site name written out ("restaurantor.com", "https://www.bbc.com/news/x"): a voice would
+// say "dot com", slashes and all. Nion names the site instead ("restaurantor", "bbc").
+const TLDS = "(?:com|org|net|io|co|uk|gov|edu|info|tv|fm|me|us|ca|de|fr|es|pt|it|nl|au|app|dev|news)";
+const URL_TEXT = /\bhttps?:\/\/[^\s)]+/g;
+// Lower-case ending on purpose, so "Lisbon.It" or a missing space after a full stop is left alone.
+const BARE_DOMAIN = new RegExp(`\\b(?:[A-Za-z0-9-]+\\.)+${TLDS}\\b(?:/[^\\s)]*)?`, "g");
+
+function siteName(address) {
+  const host = address.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0];
+  const labels = host.split(".");
+  labels.pop(); // the ending: com, org...
+  if (labels.length > 1 && /^(?:co|com|org|ac|gov)$/i.test(labels.at(-1))) labels.pop(); // as in .co.uk
+  return (labels.at(-1) ?? host).replace(/-/g, " ");
+}
+
 /** The words to speak for an answer: symbols for prices, "and", "percent" and the like turned into words. */
 export function speechText(text) {
   return String(text ?? "")
+    .replace(URL_TEXT, (address) => siteName(address))
+    .replace(BARE_DOMAIN, (address) => siteName(address))
     // Amounts first: "$12" -> "12 dollars", "$12.50" -> "12 dollars 50 cents", "$3 million" -> "3 million dollars".
     .replace(/\$\s?(\d[\d,]*)(?:\.(\d+))?(?:\s*(million|billion|trillion|thousand))?/gi, (_, whole, cents, scale) => money(whole, cents, scale))
     // Price levels: a run of one to four dollar signs standing alone.

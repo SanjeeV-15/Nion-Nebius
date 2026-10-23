@@ -8,6 +8,7 @@
 // be tested without a browser.
 
 import { visitorId, judgePass } from "./visitor.js";
+import { screenText } from "../../shared/screen-text.js";
 
 const ASK_TIMEOUT_MS = 25000;
 
@@ -55,11 +56,12 @@ export function createTypedChat({ known, getContext, loadData, applyChanges, rec
       return { needsPlace: true };
     }
 
-    messages = [...thread, { role: "assistant", content: data.reply }];
+    const reply = screenText(data.reply); // markdown marks and list dashes taken out
+    messages = [...thread, { role: "assistant", content: reply }];
     if (data.changes?.length) applyChanges(data.changes);
-    conversationId = recordExchange(conversationId, question, data.reply, data.sources);
+    conversationId = recordExchange(conversationId, question, reply, data.sources);
     return {
-      reply: data.reply,
+      reply,
       sources: data.sources ?? [],
       ui: data.ui ?? [],
       // How the answer was made (which model, how long), when the server says.
