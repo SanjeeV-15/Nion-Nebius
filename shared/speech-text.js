@@ -30,6 +30,8 @@ export function speechText(text) {
     .replace(/\s*&\s*/g, " and ")
     .replace(/(\d)\s?%/g, "$1 percent")
     .replace(/[~≈]\s?/g, "about ")
+    .replace(/^\s*[-•]\s+/gm, "") // a dash or bullet starting a line
+    .replace(/([.:;!?)])\s+[-–•]\s+(?=[A-Z0-9])/g, "$1 ") // a dash used as a list marker after a sentence, as in "...: - In France, ..."
     .replace(/^#+\s*/gm, "") // heading marks
     .replace(/[*`]+/g, "") // stray markdown marks
     .replace(/\s+/g, " ")

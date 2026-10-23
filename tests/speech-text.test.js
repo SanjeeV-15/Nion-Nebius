@@ -47,6 +47,16 @@ test("other symbols a voice would read awkwardly are turned into words, and ordi
   assert.equal(speechText(undefined), "");
 });
 
+test("a dash or bullet used as a list marker is not spoken, but hyphens and ranges are kept", () => {
+  assert.equal(
+    speechText("Here are the latest headlines: - In France, a gunman opened fire (Euronews). - Russian strikes hit Kyiv (WORLD)."),
+    "Here are the latest headlines: In France, a gunman opened fire (Euronews). Russian strikes hit Kyiv (WORLD)."
+  );
+  assert.equal(speechText("Three things:\n- Coffee\n- Lunch\n• Dinner"), "Three things: Coffee Lunch Dinner");
+  assert.equal(speechText("A mid-range, family-run spot, open 9 - 5."), "A mid-range, family-run spot, open 9 - 5.");
+  assert.equal(speechText("It's well-known and a 5-minute walk."), "It's well-known and a 5-minute walk.");
+});
+
 test("Nion's instructions tell it to say price levels in words and never read out dollar signs", async () => {
   const { buildSystemPrompt } = await import("../server/prompt.js");
   const prompt = buildSystemPrompt({}, { search: true });
