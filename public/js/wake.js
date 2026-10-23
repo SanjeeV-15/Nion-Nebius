@@ -35,6 +35,15 @@ const LONE_MISHEARD = /^\s*(?:indian|neon|nion|nyan|any\s?on|any\s?neon|a\s?neon
 // The name heard a second time right after the wake phrase ("hey Neon Indian"): not a question.
 const NAME_AGAIN = /^(?:indian|neon|nion|nyan|any\s?on)[\s,.!?-]*$/i;
 
+// Just "hey", and nothing else. Chrome gets "hey" right far more often than the name, and sometimes
+// splits "Hey Nion" into "hey" and a garbled rest. Used only while Nion is asleep (see conversation.js).
+const LONE_HEY = /^\s*(?:hey|hay)[\s,.!?-]*$/i;
+
+/** Was the whole phrase just "hey"? */
+export function isLoneHey(text) {
+  return LONE_HEY.test(String(text ?? ""));
+}
+
 // Spoken commands that control a conversation.
 const START_CONVERSATION =
   /\b(?:start|begin|have|open)\s+(?:a|the|our|another)?\s*(?:new\s+)?(?:conversation|chat|talk)\b/i;

@@ -1290,3 +1290,20 @@ test("'Hey Nion' written by Chrome as the single word 'Indian', then the questio
   assert.equal(fetches.length, 1, "the question after the lone wake word is sent");
   assert.equal(fetches[0].body.messages.at(-1).content, "what time is it in Denver");
 });
+
+test("asleep, 'hey' on its own wakes Nion, and the next phrase is the question", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey"); // Chrome kept "hey" and lost the name
+  assert.equal(fetches.length, 0, "nothing is sent yet");
+  assert.match(status(), /Listening/);
+  await hear("what time is it in Denver");
+  assert.equal(fetches.length, 1);
+  assert.equal(fetches[0].body.messages.at(-1).content, "what time is it in Denver");
+});
+
+test("asleep, ordinary talk that starts with 'hey' is not sent anywhere", async () => {
+  await startApp({ name: "Sanjeev" });
+  await hear("hey sam what's the plan for dinner");
+  assert.equal(fetches.length, 0);
+  assert.match(status(), /Waiting/);
+});

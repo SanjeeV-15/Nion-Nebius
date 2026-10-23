@@ -42,6 +42,20 @@ test("when idle, a lone wake phrase waits for the question", () => {
   });
 });
 
+test("when asleep, just 'hey' wakes Nion and waits for the question; longer chat with 'hey' in it does not", () => {
+  for (const heard of ["hey", "Hey.", "hay", "hey!"]) {
+    assert.deepEqual(decide(idle, heard), { type: "awaitQuestion" }, `should wake for: ${heard}`);
+  }
+  for (const heard of ["hey there how are you", "hey sam what's the plan for dinner", "hey you", "they said hey"]) {
+    assert.deepEqual(decide(idle, heard), { type: "ignore" }, `should ignore: ${heard}`);
+  }
+});
+
+test("inside a conversation or the follow-up window, a lone 'hey' is just speech, not a wake", () => {
+  assert.equal(decide(inConversation, "hey").type, "ask");
+  assert.equal(decide({ active: false, followUp: true, awaiting: null }, "hey").type, "ask");
+});
+
 test("'Hey Nion, let's start a conversation' starts one", () => {
   assert.deepEqual(decide(idle, "hey nion let's start a conversation"), { type: "start" });
 });

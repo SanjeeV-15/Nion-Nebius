@@ -23,7 +23,7 @@
 //   { type: "panel", command }             open ({ type: "open", panel }) or close ({ type: "close" }) a notebook panel
 //   { type: "ask", question, oneShot }     send a question to the AI
 
-import { parseUtterance, detectCommand } from "./wake.js";
+import { parseUtterance, detectCommand, isLoneHey } from "./wake.js";
 import { extractName } from "./name.js";
 import { extractPlace, wantsDeviceLocation } from "./location.js";
 import { matchPanelCommand } from "../../shared/panels.js";
@@ -82,6 +82,7 @@ export function decide(session, text) {
 
   // Otherwise Nion only listens for the wake phrase.
   const parsed = parseUtterance(heard);
-  if (!parsed.woke) return { type: "ignore" };
+  // Asleep, and all that was heard is "hey": treat it as the start of "Hey Nion" and wait for the question.
+  if (!parsed.woke) return isLoneHey(heard) ? { type: "awaitQuestion" } : { type: "ignore" };
   return decideAfterWake(parsed.question, session);
 }
